@@ -1,0 +1,246 @@
+
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Using github from the CLI &mdash; git-hub 1.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Noticia+Text|Droid+Sans+Mono" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/jquery.cookie.js"></script>
+    <script type="text/javascript" src="_static/cloud.js"></script>
+    <link rel="top" title="git-hub 1.0 documentation" href="#" /> 
+  </head>
+  <body>
+    <div class="relbar-top">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+    <li><a href="#">git-hub 1.0 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="using-github-from-the-cli">
+<h1>Using github from the CLI<a class="headerlink" href="#using-github-from-the-cli" title="Permalink to this headline">¶</a></h1>
+<p><strong class="command">git hub</strong> lets you use your github account from the command line.
+Among other things, it lets you create and fork repositories, or file pull
+requests.</p>
+<div class="section" id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
+<p>The first time you use <strong class="command">git hub</strong>, it will ask you for your github
+username and password. It then requests (and stores) an API authentication
+token, so you can always revoke access from your <a class="reference external" href="https://github.com/settings/applications">profile page</a>.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub whoami</tt></dt>
+<dd></dd></dl>
+
+<p>A simple command to try out is <strong class="command">git hub whoami</strong>, which tells you what
+github thinks about who you are. For example:</p>
+<div class="highlight-python"><pre>dennis@lightning:~$ git hub whoami
+Github user: seveas
+GitHub password:
+<span style="font-weight: bold; text-decoration: underline">Dennis Kaarsemaker</span>
+Profile   https://github.com/seveas
+Email     dennis@kaarsemaker.net
+Blog      http://www.kaarsemaker.net
+Location  Amsterdam
+Company   Booking.com
+Repos     36 public, 0 private
+Gists     4 public, 0 private
+RSA key   ...N0nFw3oW5l (Dennis)</pre>
+</div>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub whois</tt></dt>
+<dd></dd></dl>
+
+<p>If you want to see this information about other users, use <strong class="command">git hub whois</strong>:</p>
+<div class="highlight-python"><pre>dennis@lightning:~$ git hub whois sigmavirus24
+<span style="font-weight: bold; text-decoration: underline">Ian Cordasco</span>
+Profile   https://github.com/sigmavirus24
+Email     graffatcolmingov@gmail.com
+Blog      http://www.coglib.com/~icordasc/blog
+Repos     21 public, 0 private
+Gists     9 public, 0 private</pre>
+</div>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub add-public-keys [keys]</tt></dt>
+<dd></dd></dl>
+
+<p>Adds SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
+</div>
+<div class="section" id="interacting-with-repositories">
+<h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub create [-d|--description &quot;Description goes here&quot;]</tt></dt>
+<dd></dd></dl>
+
+<p>Create a repository on github for your current repository. An optional
+description can be given too. After running this command, a repository will be
+created on github and your local repository will have github as remote
+&#8220;origin&#8221;, so <strong class="command">git push origin master</strong> will work.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub set-origin</tt></dt>
+<dd></dd></dl>
+
+<p>Fixes the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be
+set to your github repository. If that repository is a fork, remote &#8220;upstram&#8221;
+will be set to the repository you forked from.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub fork [repo]</tt></dt>
+<dd></dd></dl>
+
+<p>Forks another person&#8217;s git repository on github and clones that repository
+locally. Repo can be specified as a (git) url or simply username/repo. Like
+with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes will be set up too.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub forks</tt></dt>
+<dd></dd></dl>
+
+<p>Lists all forks of this repository, highlighting the original repository.</p>
+</div>
+<div class="section" id="issues-and-pull-requests">
+<h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub issues [args]</tt></dt>
+<dd></dd></dl>
+
+<p>Lists all open issues. You can specify <a class="reference external" href="http://github3py.readthedocs.org/en/latest/repos.html#github3.repos.Repository.list_issues">filters</a> to filter issues.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub issue [issue number...]</tt></dt>
+<dd></dd></dl>
+
+<p>Shows details about the mentioned issue numbers.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub pull-request [yours:theirs]</tt></dt>
+<dd></dd></dl>
+
+<p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
+the upstream branch &#8220;theirs&#8221; (default: master). Like for a commit message, your
+editor will be opened to write a pull request message. The comments of said
+message contain the shortlog and diffstat of the commits that you&#8217;re asking to
+be merged.</p>
+</div>
+<div class="section" id="gists">
+<h2>Gists<a class="headerlink" href="#gists" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub gist [-d description] file [file ...]</tt></dt>
+<dd></dd></dl>
+
+<p>Creates a gist (with optional description) from the named files. If you specify
+<tt class="file docutils literal"><span class="pre">-</span></tt> as filename, <tt class="file docutils literal"><span class="pre">stdin</span></tt> will be used, making it easy to pipe
+command output to github, for example: <strong class="command">fortune | git hub gist -</strong></p>
+</div>
+<div class="section" id="other">
+<h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub network</tt></dt>
+<dd></dd></dl>
+
+<p>Generates a graphviz graph of people following you, people you follow or people
+who&#8217;s repositories you&#8217;ve forked. For example:</p>
+<div class="highlight-python"><pre>git hub network | dot -T png -Grankdir=LR &gt; network.png</pre>
+</div>
+<p>Here&#8217;s mine:</p>
+<img alt="_images/network.png" src="_images/network.png" />
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Using github from the CLI</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
+<li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
+<li><a class="reference internal" href="#gists">Gists</a></li>
+<li><a class="reference internal" href="#other">Other</a></li>
+</ul>
+</li>
+</ul>
+
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+    <li><a href="#">git-hub 1.0 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2012, Dennis Kaarsemaker.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>
