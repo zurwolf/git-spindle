@@ -9,7 +9,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Using github from the CLI &mdash; git-hub 1.0 documentation</title>
+    <title>Using github from the CLI &mdash; git-hub 1.5 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -18,7 +18,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '1.0',
+        VERSION:     '1.5',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -29,7 +29,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/jquery.cookie.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-hub 1.0 documentation" href="#" /> 
+    <link rel="top" title="git-hub 1.5 documentation" href="#" /> 
   </head>
   <body>
     <div class="relbar-top">
@@ -40,7 +40,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-    <li><a href="#">git-hub 1.0 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.5 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -57,6 +57,10 @@
 <p><strong class="command">git hub</strong> lets you use your github account from the command line.
 Among other things, it lets you create and fork repositories, or file pull
 requests.</p>
+<div class="section" id="install-info">
+<h2>Install info<a class="headerlink" href="#install-info" title="Permalink to this headline">¶</a></h2>
+<p>pip install <a class="reference external" href="http://seveas.net/git-hub">http://seveas.net/git-hub</a></p>
+</div>
 <div class="section" id="basic-usage">
 <h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
 <p>The first time you use <strong class="command">git hub</strong>, it will ask you for your github
@@ -100,22 +104,22 @@ Gists     9 public, 0 private</pre>
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub ls-repos [user]</tt></dt>
+<tt class="descname">git hub repos [&lt;user&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>List all repositories owned by a user, by default you.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub add-public-keys [keys]</tt></dt>
+<tt class="descname">git hub add-public-keys [&lt;key&gt;...]</tt></dt>
 <dd></dd></dl>
 
-<p>Adds SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
+<p>Add SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
 </div>
 <div class="section" id="interacting-with-repositories">
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub create [-d|--description &quot;Description goes here&quot;]</tt></dt>
+<tt class="descname">git hub create [-d &lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Create a repository on github for your current repository. An optional
@@ -127,22 +131,22 @@ created on github and your local repository will have github as remote
 <tt class="descname">git hub set-origin</tt></dt>
 <dd></dd></dl>
 
-<p>Fixes the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be
-set to your github repository. If that repository is a fork, remote &#8220;upstram&#8221;
-will be set to the repository you forked from.</p>
+<p>Fix the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be set
+to your github repository. If that repository is a fork, remote &#8220;upstram&#8221; will
+be set to the repository you forked from.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub clone [repo]</tt></dt>
+<tt class="descname">git hub clone [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Clones one of your github repositories by name. If it&#8217;s a fork, the &#8220;upstream&#8221;
-origin will be set up too.</p>
+<p>Clone a github repository by name (e.g. seveas/hacks) or URL. If it&#8217;s a fork,
+the &#8220;upstream&#8221; origin will be set up too.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub fork [repo]</tt></dt>
+<tt class="descname">git hub fork [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Forks another person&#8217;s git repository on github and clones that repository
+<p>Fork another person&#8217;s git repository on github and clones that repository
 locally. Repo can be specified as a (git) url or simply username/repo. Like
 with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes will be set up too.</p>
 <dl class="describe">
@@ -150,25 +154,27 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 <tt class="descname">git hub forks</tt></dt>
 <dd></dd></dl>
 
-<p>Lists all forks of this repository, highlighting the original repository.</p>
+<p>List all forks of this repository, highlighting the original repository.</p>
 </div>
 <div class="section" id="issues-and-pull-requests">
 <h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub issues [args]</tt></dt>
+<tt class="descname">git hub issues [--parent] [&lt;filters&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Lists all open issues. You can specify <a class="reference external" href="http://github3py.readthedocs.org/en/latest/repos.html#github3.repos.Repository.list_issues">filters</a> to filter issues.</p>
+<p>List all open issues. You can specify <a class="reference external" href="http://github3py.readthedocs.org/en/latest/repos.html#github3.repos.Repository.list_issues">filters</a> to filter issues. When you
+specify <em class="xref std std-option">--parent</em>, , list all open issues for the parent repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub issue [issue number...]</tt></dt>
+<tt class="descname">git hub issue [--parent] &lt;issue&gt;...</tt></dt>
 <dd></dd></dl>
 
-<p>Shows details about the mentioned issue numbers.</p>
+<p>Shows details about the mentioned issue numbers. As with <em class="xref std std-option">issues</em>, you
+can use the <em class="xref std std-option">--parent</em> option to use the parent repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub pull-request [yours:theirs]</tt></dt>
+<tt class="descname">git hub pull-request [--issue &lt;issue&gt;] &lt;yours:theirs&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
@@ -176,17 +182,25 @@ the upstream branch &#8220;theirs&#8221; (default: master). Like for a commit me
 editor will be opened to write a pull request message. The comments of said
 message contain the shortlog and diffstat of the commits that you&#8217;re asking to
 be merged.</p>
+<p>If you specify an issue number, that issue will be turned into a pull request
+and you will not be asked to write a pull request message.</p>
 </div>
 <div class="section" id="gists">
 <h2>Gists<a class="headerlink" href="#gists" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub gist [-d description] file [file ...]</tt></dt>
+<tt class="descname">git hub gist [-d &lt;description&gt;] &lt;file&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>Creates a gist (with optional description) from the named files. If you specify
 <tt class="file docutils literal"><span class="pre">-</span></tt> as filename, <tt class="file docutils literal"><span class="pre">stdin</span></tt> will be used, making it easy to pipe
 command output to github, for example: <strong class="command">fortune | git hub gist -</strong></p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub gists [&lt;user&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List your gists, or those created by another user.</p>
 </div>
 <div class="section" id="other">
 <h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
@@ -213,6 +227,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
   <h3><a href="#">Table Of Contents</a></h3>
   <ul>
 <li><a class="reference internal" href="#">Using github from the CLI</a><ul>
+<li><a class="reference internal" href="#install-info">Install info</a></li>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
 <li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
 <li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
@@ -247,7 +262,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-    <li><a href="#">git-hub 1.0 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.5 documentation</a> &raquo;</li>
  
       </ul>
     </div>
