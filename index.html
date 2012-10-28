@@ -136,14 +136,14 @@ to your github repository. If that repository is a fork, remote &#8220;upstram&#
 be set to the repository you forked from.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub clone [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub clone &lt;repo&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Clone a github repository by name (e.g. seveas/hacks) or URL. If it&#8217;s a fork,
 the &#8220;upstream&#8221; origin will be set up too.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub fork [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub fork &lt;repo&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Fork another person&#8217;s git repository on github and clones that repository
@@ -155,16 +155,51 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 <dd></dd></dl>
 
 <p>List all forks of this repository, highlighting the original repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub mirror [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Mirror a repository from github. This is similar to clone, but clones into a
+bare repository and maps all remote refs to local refs. When run without
+argument, the current repository will be updated.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub hooks</tt></dt>
+<dd></dd></dl>
+
+<p>Show all service hooks for this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub add-hook &lt;name&gt; [&lt;setting&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>Add a hook to this repository with the appropriate settings. Settings can be
+found in the hooks page on github. One setting all hooks accept is
+<tt class="xref py py-data docutils literal"><span class="pre">events</span></tt>, a comma-separated list of events this hook will be triggered
+for. A list of all events can be found on the <a class="reference external" href="http://developer.github.com/v3/repos/hooks/">GitHub API page</a></p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub edit-hook &lt;name&gt; [&lt;setting&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>Edit one or more settings for a hook.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git-hub remove-hook &lt;name&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Remove a service hook.</p>
 </div>
 <div class="section" id="issues-and-pull-requests">
 <h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub issues [--parent] [&lt;filters&gt;]</tt></dt>
+<tt class="descname">git hub issues [--parent] [&lt;filter&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>List all open issues. You can specify <a class="reference external" href="http://github3py.readthedocs.org/en/latest/repos.html#github3.repos.Repository.list_issues">filters</a> to filter issues. When you
-specify <em class="xref std std-option">--parent</em>, , list all open issues for the parent repository.</p>
+specify <em class="xref std std-option">--parent</em>, list all open issues for the parent repository.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub issue [--parent] &lt;issue&gt;...</tt></dt>
