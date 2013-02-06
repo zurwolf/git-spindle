@@ -59,7 +59,12 @@ Among other things, it lets you create and fork repositories, or file pull
 requests.</p>
 <div class="section" id="install-info">
 <h2>Install info<a class="headerlink" href="#install-info" title="Permalink to this headline">¶</a></h2>
-<p>pip install <a class="reference external" href="http://seveas.net/git-hub">http://seveas.net/git-hub</a></p>
+<p>To install the latest released version:</p>
+<div class="highlight-python"><pre>pip install hub</pre>
+</div>
+<p>To install the latest development version:</p>
+<div class="highlight-python"><pre>pip install http://seveas.net/git-hub</pre>
+</div>
 </div>
 <div class="section" id="basic-usage">
 <h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
@@ -114,6 +119,13 @@ Gists     9 public, 0 private</pre>
 <dd></dd></dl>
 
 <p>Add SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub public-keys &lt;user&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Display all public keys of a user, in a format that can be added to
+<tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>.</p>
 </div>
 <div class="section" id="interacting-with-repositories">
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
@@ -239,6 +251,14 @@ command output to github, for example: <strong class="command">fortune | git hub
 </div>
 <div class="section" id="other">
 <h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub ignore [&lt;lang&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>Github provides <tt class="file docutils literal"><span class="pre">.gitignore</span></tt> templates for various languages and
+environments. This command will let you quickly grab them and add them to your
+<tt class="file docutils literal"><span class="pre">.gitignore</span></tt>. For example: <strong class="command">git hub ignore Python C</strong></p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub network</tt></dt>
