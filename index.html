@@ -9,7 +9,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Using github from the CLI &mdash; git-hub 1.7 documentation</title>
+    <title>Using github from the CLI &mdash; git-hub 1.11 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -18,7 +18,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '1.7',
+        VERSION:     '1.11',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -29,7 +29,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/jquery.cookie.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-hub 1.7 documentation" href="#" /> 
+    <link rel="top" title="git-hub 1.11 documentation" href="#" /> 
   </head>
   <body>
     <div class="relbar-top">
@@ -40,7 +40,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-    <li><a href="#">git-hub 1.7 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.11 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -126,6 +126,14 @@ Gists     9 public, 0 private</pre>
 
 <p>Display all public keys of a user, in a format that can be added to
 <tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub log [&lt;what&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Displays a log of your github actions, such as pushes and issue comments. You
+can also specify a user or repository and the relevant log will be shown
+instead of yours.</p>
 </div>
 <div class="section" id="interacting-with-repositories">
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
@@ -169,12 +177,28 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 <p>List all forks of this repository, highlighting the original repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub mirror [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub add-remote [&lt;user&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub browse [--parent]</tt></dt>
+<dd></dd></dl>
+
+<p>Browse the repository (or its parent) on GitHub</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub mirror [--goblet] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Mirror a repository from github. This is similar to clone, but clones into a
 bare repository and maps all remote refs to local refs. When run without
-argument, the current repository will be updated.</p>
+argument, the current repository will be updated. You can also specify
+<em class="xref std std-option">user/*</em> as repository to mirror all repositories of a user.</p>
+<p>When you use the <em class="xref std std-option">--goblet</em> option, the resulting mirror will be
+configured for the goblet web interface, using description, owner and clone
+information from github.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub hooks</tt></dt>
@@ -228,7 +252,8 @@ can use the <em class="xref std std-option">--parent</em> option to use the pare
 the upstream branch &#8220;theirs&#8221; (default: master). Like for a commit message, your
 editor will be opened to write a pull request message. The comments of said
 message contain the shortlog and diffstat of the commits that you&#8217;re asking to
-be merged.</p>
+be merged. Note that if you use any characterset in your logs and filenames
+that is not ascii or utf-8, git hub will misbehave.</p>
 <p>If you specify an issue number, that issue will be turned into a pull request
 and you will not be asked to write a pull request message.</p>
 </div>
@@ -317,14 +342,14 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-    <li><a href="#">git-hub 1.7 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.11 documentation</a> &raquo;</li>
  
       </ul>
     </div>
     </div>
 
     <div class="footer">
-        &copy; Copyright 2012, Dennis Kaarsemaker.
+        &copy; Copyright 2012-2013, Dennis Kaarsemaker.
     </div>
     <!-- cloud_sptheme 1.4 -->
   </body>
