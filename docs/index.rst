@@ -67,6 +67,12 @@ Add SSH public keys (default: :file:`~/.ssh/*.pub`) to your account.
 Display all public keys of a user, in a format that can be added to
 :file:`~/.authorized_keys`.
 
+.. describe:: git hub log [<what>]
+
+Displays a log of your github actions, such as pushes and issue comments. You
+can also specify a user or repository and the relevant log will be shown
+instead of yours.
+
 .. _`profile page`: https://github.com/settings/applications
 
 Interacting with repositories
@@ -104,15 +110,20 @@ List all forks of this repository, highlighting the original repository.
 
 Add a users fork as a remote using the user's login as name for the remote.
 
-.. describe:: git hub browse
+.. describe:: git hub browse [--parent]
 
-Browse the repository on GitHub
+Browse the repository (or its parent) on GitHub
 
-.. describe:: git hub mirror [<repo>]
+.. describe:: git hub mirror [--goblet] [<repo>]
 
 Mirror a repository from github. This is similar to clone, but clones into a
 bare repository and maps all remote refs to local refs. When run without
-argument, the current repository will be updated.
+argument, the current repository will be updated. You can also specify
+:option:`user/*` as repository to mirror all repositories of a user.
+
+When you use the :option:`--goblet` option, the resulting mirror will be
+configured for the goblet web interface, using description, owner and clone
+information from github.
 
 .. describe:: git hub hooks
 
@@ -154,7 +165,8 @@ Files a pull request to merge branch "yours" (default: the current branch) into
 the upstream branch "theirs" (default: master). Like for a commit message, your
 editor will be opened to write a pull request message. The comments of said
 message contain the shortlog and diffstat of the commits that you're asking to
-be merged.
+be merged. Note that if you use any characterset in your logs and filenames
+that is not ascii or utf-8, git hub will misbehave.
 
 If you specify an issue number, that issue will be turned into a pull request
 and you will not be asked to write a pull request message.
