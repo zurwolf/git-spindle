@@ -25,12 +25,14 @@ import glob
 import docopt
 import os
 import re
+import requests
 import socket
 import sys
 import webbrowser
 from whelk import Shell
 shell = Shell(encoding='utf-8')
-if sys.version_info[0] > 2:
+PY3 = sys.version_info[0] > 2
+if PY3:
     # On python 3, shell decodes into utf-8 as above
     try_decode = lambda x: x
 else:
@@ -48,8 +50,11 @@ class Attr(object):
     def name(self, val):
         return self.rev_attr[val]
 
-fgcolor = Attr(black=30, red=31, green=32, yellow=33, blue=34, magenta=35, cyan=36, white=37, none=None)
-bgcolor = Attr(black=40, red=41, green=42, yellow=43, blue=44, magenta=45, cyan=46, white=47, none=None)
+    def xterm(self, val):
+        return '%d;5;%d' % (self._xterm, val)
+
+fgcolor = Attr(black=30, red=31, green=32, yellow=33, blue=34, magenta=35, cyan=36, white=37, _xterm=38, default=39, none=None)
+bgcolor = Attr(black=40, red=41, green=42, yellow=43, blue=44, magenta=45, cyan=46, white=47, _xterm=48, default=49, none=None)
 attr    = Attr(normal=0, bright=1, faint=2, underline=4, negative=7, conceal=8, crossed=9, none=None)
 
 esc = '\033'
@@ -72,10 +77,11 @@ Usage:
   git-hub add-public-keys [<key>...]
   git-hub add-remote [--ssh|--http] <user>
   git-hub browse [--parent]
+  git-hub calendar [<user>]
   git-hub clone [--ssh|--http] <repo>
   git-hub create [-d <description>]
   git-hub edit-hook <name> [<setting>...]
-  git-hub fork [--ssh|--http] <repo>
+  git-hub fork [--ssh|--http] [<repo>]
   git-hub forks
   git-hub gist [--desc <description>] <file>...
   git-hub gists [<user>]
@@ -170,9 +176,13 @@ def get_repo():
     mine = origin = upstream = repo = None
     remotes = shell.git('config', '--get-regexp', 'remote\..*\.url', 'github.com').stdout.strip().splitlines()
     for remote in reversed(remotes):
-        m = re.match('^remote\.([^.]*)\.url.*github.com[/:]([^/]*)/([^/]*?).git', remote)
+        m = re.match('^remote\.([^.]*)\.url.*github.com[/:]([^/]*)/([^/]*?)(?:\.git)?$', remote)
         remote, user, repo = m.groups()
         repo = gh.repository(user, repo)
+        if not repo:
+            print("Repository %s/%s no longer exists on github" % m.groups()[1:])
+            continue
+        repo.remote = remote
         if remote == 'origin':
             origin = repo
         elif remote == 'upstream':
@@ -195,21 +205,37 @@ def create(opts):
 @command
 def set_origin(opts):
     """Set the remote 'origin' to github.\n  If this is a fork, set the remote 'upstream' to the parent"""
+    gh = github()
+    me = gh.user()
     repo = get_repo()
+    # Is this mine? No? Do I have a clone?
+    if repo.owner.login != me.login:
+        my_repo = gh.repository(me, repo.name)
+        if my_repo:
+            repo = my_repo
+
     shell.git('config', 'remote.origin.url', repo.ssh_url)
-    shell.git('config', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
+    shell.git('config', '--replace-all', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
 
     if repo.fork:
         parent = repo.parent
         shell.git('config', 'remote.upstream.url', parent.git_url)
         shell.git('config', 'remote.upstream.fetch', '+refs/heads/*:refs/remotes/upstream/*')
+    else:
+        # If issues are enabled, fetch pull requests
+        try:
+            list(repo.iter_issues(number=1))
+        except github3.GitHubError:
+            pass
+        else:
+            shell.git('config', '--add', 'remote.origin.fetch', '+refs/pull/*/head:refs/pull/*/head')
 
 @command
 def repos(opts):
     """[user] List all repos of a user, by default yours"""
     gh = github()
     user = (opts['<user>'] or [gh.user().login])[0]
-    repos = list(gh.iter_repos(user))
+    repos = list(gh.iter_user_repos(user))
     maxlen = max([len(x.name) for x in repos])
     fmt = "%%-%ds %%s" % maxlen
     for repo in repos:
@@ -226,7 +252,10 @@ def clone(opts):
     if repo.endswith('.git'):
         repo = repo[:-4]
 
-    repo = gh.repository(user, repo)
+    repo_ = gh.repository(user, repo)
+    if not repo_:
+        err("Repository %s/%s does not exist" % (user, repo))
+    repo = repo_
     url = repo.ssh_url
     if gh.user().login != user:
         url = repo.git_url
@@ -255,14 +284,19 @@ def mirror(opts):
             repo = repo[:-4]
         git_dir = repo + '.git'
         if repo == '*':
-            for repo in gh.iter_repos(user):
+            for repo in gh.iter_user_repos(user):
                 opts['<repo>'] = '%s/%s' % (user, repo)
                 mirror(opts)
             return
-        repo = gh.repository(user, repo)
+        repo_ = gh.repository(user, repo)
+        if not repo_:
+            err("Repository %s/%s does not exist" % (user, repo))
     else:
         git_dir = '.'
-        repo = get_repo()
+        repo_ = get_repo()
+        if not repo_:
+            err("Repository %s/%s does not exist" % (user, repo))
+    repo = repo_
 
     if not os.path.exists(git_dir):
         url = repo.git_url
@@ -288,7 +322,10 @@ def mirror(opts):
             sys.exit(rc)
 
     with open(os.path.join(git_dir, 'description'), 'w') as fd:
-        fd.write(repo.description.encode('utf-8'))
+        if PY3:
+            fd.write(repo.description)
+        else:
+            fd.write(repo.description.encode('utf-8'))
     if opts['--goblet']:
         if repo.fork:
             owner = gh.user(repo.parent.owner.login)
@@ -299,25 +336,36 @@ def mirror(opts):
         shell.git('--git-dir', git_dir, 'config', 'goblet.cloneurlhttp', repo.clone_url)
         goblet_dir = os.path.join(git_dir, 'goblet')
         if not os.path.exists(goblet_dir):
-            os.mkdir(goblet_dir, 0777)
-            os.chmod(goblet_dir, 0777)
+            os.mkdir(goblet_dir, 0o777)
+            os.chmod(goblet_dir, 0o777)
 
 @command
 def fork(opts):
     gh = github()
     """Fork a repo and clone it"""
-    if '/' not in opts['<repo>']:
-        err("Usage: git hub fork url\n       git hub fork user/repo")
-    user, repo = opts['<repo>'].rsplit('/',2)[-2:]
+    if not opts['<repo>']:
+        repo = get_repo()
+        user, repo = repo.owner.login, repo.name
+        do_clone = False
+    else:
+        if '/' not in opts['<repo>']:
+            err("Usage: git hub fork url\n       git hub fork user/repo")
+        user, repo = opts['<repo>'].rsplit('/',2)[-2:]
+        do_clone = True
     if repo.endswith('.git'):
         repo = repo[:-4]
 
     if repo in [x.name for x in gh.iter_repos()]:
         err("Repository already exists")
-    repo = gh.repository(user, repo)
-    my_clone = repo.create_fork()
+    repo_ = gh.repository(user, repo)
+    if not repo_:
+        err("Repository %s/%s does not exist" % (user, repo))
+    my_clone = repo_.create_fork()
     opts['<repo>'] = my_clone.name
-    clone(opts)
+    if do_clone:
+        clone(opts)
+    else:
+        set_origin(opts)
 
 @command
 def forks(opts):
@@ -336,9 +384,16 @@ def issues(opts):
     if repo.fork and opts['--parent']:
         repo = repo.parent
     filters = dict([x.split('=', 1) for x in opts['<filter>']])
-    for issue in repo.iter_issues(**filters):
-        url = issue.pull_request and issue.pull_request['html_url'] or issue.html_url
-        print("[%d] %s %s" % (issue.number, issue.title, url))
+    try:
+        for issue in repo.iter_issues(**filters):
+            url = issue.pull_request and issue.pull_request['html_url'] or issue.html_url
+            print("[%d] %s %s" % (issue.number, issue.title, url))
+    except github3.GitHubError:
+        _, err, _ = sys.exc_info()
+        if err.code == 410:
+            print(err.message)
+        else:
+            raise
 
 @command
 def issue(opts):
@@ -463,9 +518,10 @@ def public_keys(opts):
 def pull_request(opts):
     """Opens a pull request to merge your branch1 to upstream branch2"""
     repo = get_repo()
-    if not repo.fork:
-        err("This is not a forked repository")
-    parent = repo.parent
+    if repo.fork:
+        parent = repo.parent
+    else:
+        parent = repo
     # Which branch?
     src = opts['<branch1:branch2>'] or ''
     dst = None
@@ -476,19 +532,34 @@ def pull_request(opts):
     if not dst:
         dst = 'master'
 
+    if src == dst and parent == repo:
+        err("Cannot file a pull request on the same branch")
+
     # Try to get the local commit
     commit = check(shell.git('show-ref', 'refs/heads/%s' % src)).stdout.split()[0]
     # Do they exist on github?
-    try:
-        srcb = repo.branch(src)
-        if srcb.commit.sha != commit:
-            err("Branch %s not up to date on github (%s vs %s)" % (src, srcb.commit.sha[:7], commit[:7]))
-    except github3.GitHubError:
-        err("Branch %s does not exist in your github repo" % src)
+    srcb = repo.branch(src)
+    if not srcb:
+        if raw_input("Branch %s does not exist in your github repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
+            shell.git('push', repo.remote, src)
+        else:
+            err("Aborting")
+    elif srcb and srcb.commit.sha != commit:
+        # Have we diverged? Then there are commits that are reachable from the github branch but not local
+        diverged = shell.git('rev-list', srcb.commit.sha, '^' + commit)
+        if diverged.stderr or diverged.stdout:
+            if raw_input("Branch %s has diverged from github, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
+                shell.git('push', '--force', repo.remote, src)
+            else:
+                err("Aborting")
+        else:
+            if raw_input("Branch %s not up to date on github, but can be fast forwarded, shall I push? [Y/n] " % src) in ['y', 'Y', '']:
+                shell.git('push', repo.remote, src)
+            else:
+                err("Aborting")
 
-    try:
-        dstb = parent.branch(dst)
-    except github3.GitHubError:
+    dstb = parent.branch(dst)
+    if not dstb:
         err("Branch %s does not exist in %s/%s" % (dst, parent.owner.login, parent.name))
 
     # Do we have the dst locally?
@@ -526,7 +597,7 @@ def pull_request(opts):
 # Requesting a pull from %s/%s into %s/%s
 #
 # Please enter a message to accompany your pull request. Lines starting
-# with '#' will be ignored, and an empty message aborts the commit.
+# with '#' will be ignored, and an empty message aborts the request.
 #""" % (repo.owner.login, src, parent.owner.login, dst)
     body += "\n# " + try_decode(check(shell.git('shortlog', '%s/%s..%s' % (remote, dst, src))).stdout).strip().replace('\n', '\n# ')
     body += "\n#\n# " + try_decode(check(shell.git('diff', '--stat', '%s^..%s' % (commits[0], commits[-1]))).stdout).strip().replace('\n', '\n#')
@@ -693,8 +764,12 @@ def log(opts):
             logtype = 'repo'
             user, repo = opts['<what>'].split('/', 1)
             what = gh.repository(user, repo)
+            if not what:
+                err("Repository %s/%s does not exist" % (user, repo))
         else:
             what = gh.user(opts['<what>'])
+            if not what:
+                err("User %s does not exist" % opts['<what>'])
 
     events = [x for x in what.iter_events(number=30)]
     now = datetime.datetime.now()
@@ -752,5 +827,86 @@ def log(opts):
             from pprint import pprint
             print(wrap("Cannot display %s. Please file a bug at github.com/seveas/git-hub\nincluding the following output:" % event.type, attr.bright))
             pprint(event.payload)
+
+@command
+def calendar(opts):
+    """Show a timeline of a user's activity"""
+    gh = github()
+    user = (opts['<user>'] or [gh.user().login])[0]
+    months = []
+    rows = [[],[],[],[],[],[],[]]
+    commits = []
+
+    data = requests.get('https://github.com/users/%s/contributions_calendar_data' % user).json()
+    y, m, d = [int(x) for x in data[0][0].split('/')]
+    wd = (datetime.date(y,m,d).weekday()+1) % 7
+    for i in range(wd):
+        rows[i].append((None,None))
+    if wd:
+        months.append(m)
+    for (date, count) in data:
+        count = int(count)
+        y, m, d = [int(x) for x in date.split('/')]
+        wd = (datetime.date(y,m,d).weekday()+1) % 7
+        rows[wd].append((d, count))
+        if not wd:
+            months.append(m)
+        if count:
+            commits.append(count)
+
+    # Print months
+    sys.stdout.write("  ")
+    last = -1
+    skip = months[2] != months[0]
+    monthtext = ('', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+    for month in months:
+        if month != last:
+            sys.stdout.write(monthtext[month] + ' ')
+            skip = True
+            last = month
+        elif not skip:
+            sys.stdout.write('  ')
+        else:
+            skip = False
+    print("")
+
+    # Print commits
+    days = 'SMTWTFS'
+    commits.sort()
+    p5  = commits[int(round(len(commits) * 0.95))]
+    p15 = commits[int(round(len(commits) * 0.85))]
+    p35 = commits[int(round(len(commits) * 0.65))]
+    blob1 = b'\xe2\x96\xa0'.decode('utf-8')
+    blob2 = b'\xe2\x97\xbc'.decode('utf-8')
+    for rnum, row in enumerate(rows):
+        if rnum % 2:
+            sys.stdout.write(days[rnum] + " ")
+        else:
+            sys.stdout.write("  ")
+        for (day, count) in row:
+            if count is None:
+                color = attr.conceal
+            elif count > p5:
+                color = fgcolor.xterm(22)
+            elif count > p15:
+                color = fgcolor.xterm(28)
+            elif count > p35:
+                color = fgcolor.xterm(64)
+            elif count:
+                color = fgcolor.xterm(65)
+            else:
+                color = fgcolor.xterm(237)
+            if day == 1:
+                msg = wrap(blob2, attr.underline, color)
+                if not PY3:
+                    msg = msg.encode('utf-8')
+                sys.stdout.write(msg)
+            else:
+                msg = wrap(blob1, attr.underline, color)
+                if not PY3:
+                    msg = msg.encode('utf-8')
+                sys.stdout.write(msg)
+            sys.stdout.write(' ')
+        print("")
 
 main()
