@@ -78,6 +78,7 @@ Usage:
   git-hub add-remote [--ssh|--http] <user>
   git-hub browse [--parent]
   git-hub calendar [<user>]
+  git-hub cat <file>...
   git-hub clone [--ssh|--http] <repo>
   git-hub create [-d <description>]
   git-hub edit-hook <name> [<setting>...]
@@ -151,6 +152,8 @@ def github():
         token = auth.token
         shell.git('config', '--file', config_file, 'github.token', token)
         shell.git('config', '--file', config_file, 'github.auth_id', str(auth.id))
+        print("A GitHub authentication token is now cached in ~/.githubconfig - do not share this file")
+        print("To revoke access, visit https://github.com/settings/applications")
 
     if not user or not token:
         err("No user or token specified")
@@ -171,6 +174,7 @@ def get_repo():
     # - A remote named 'origin'
     # - A remote named 'upstream'
     # - The first defined remote
+    # - A repository on github with the same name as the current directory
     gh = github()
     me = gh.user().login
     mine = origin = upstream = repo = None
@@ -189,7 +193,11 @@ def get_repo():
             upstream = repo
         if user == me:
             mine = repo
-    return mine or origin or upstream or repo
+    repo = mine or origin or upstream or repo
+    if not repo:
+        repo = os.path.basename(shell.git('rev-parse', '--show-toplevel').stdout.strip())
+        repo = gh.repository(me, repo)
+    return repo
 
 @command
 def create(opts):
@@ -576,8 +584,8 @@ def pull_request(opts):
     if not commits:
         err("Your branch has no commits yet")
     # Are we turning an issue into a commit?
-    if opts['<issue>']:
-        pull = parent.create_pull_from_issue(base=dst, head='%s:%s' % (repo.owner.login, src), issue=int(opts['<issue>']))
+    if opts['--issue']:
+        pull = parent.create_pull_from_issue(base=dst, head='%s:%s' % (repo.owner.login, src), issue=int(opts['--issue']))
         print("Pull request %d created %s" % (pull.number, pull.html_url))
         return
     if len(commits) == 1:
@@ -643,7 +651,7 @@ def network(opts):
             if person.done:
                 continue
 
-            sys.stderr.write("Looking at user %s" % login)
+            sys.stderr.write("Looking at user %s\n" % login)
             # Followers
             for other in person.user.iter_followers():
                 if other.login not in people:
@@ -655,8 +663,8 @@ def network(opts):
                 person.rel_to[other.login].append('follows')
 
             # Forks
-            for repo in gh.iter_repos(login, type='owner'):
-                sys.stderr.write("Looking at repo %s" % repo.name)
+            for repo in gh.iter_user_repos(login, type='owner'):
+                sys.stderr.write("Looking at repo %s\n" % repo.name)
                 if repo.fork:
                     # Sigh. GH doesn't return parent info in iter_repos
                     repo = gh.repository(repo.owner.login, repo.name)
@@ -753,6 +761,22 @@ def browse(opts):
     webbrowser.open_new(repo.html_url)
 
 @command
+def cat(opts):
+    """Display the contents of a file on github"""
+    gh = github()
+    for file in opts['<file>']:
+        repo, ref, file = ([None, None] + file.split(':',2))[-3:]
+        user = None
+        if repo:
+            user, repo = ([None] + repo.split('/'))[-2:]
+        repo = gh.repository(user or gh.user().login, repo) if repo else get_repo()
+        content = repo.contents(path=file, ref=ref)
+        if content:
+            print(content.decoded)
+        else:
+            sys.stderr.write("No such file: %s\n" % file)
+
+@command
 def log(opts):
     """Display github log for yourself or other users"""
     gh = github()
@@ -788,11 +812,16 @@ def log(opts):
             repo_ = ''
             ts += ' %s' % event.actor.login
         if event.type == 'CommitCommentEvent':
-            print("%s commented on commit %s%s" % (ts, event.payload['comment'].commit_id, repo_))
+            print("%s commented on commit %s%s" % (ts, event.payload['comment'].commit_id[:7], repo_))
         elif event.type == 'CreateEvent':
-            print("%s created %s %s%s" % (ts, event.payload['ref_type'], event.payload['ref'], repo_))
+            if event.payload['ref_type'] == 'repository':
+                print("%s created %s %s" % (ts, event.payload['ref_type'], repo))
+            else:
+                print("%s created %s %s%s" % (ts, event.payload['ref_type'], event.payload['ref'], repo_))
         elif event.type == 'DeleteEvent':
             print("%s deleted %s %s%s" % (ts, event.payload['ref_type'], event.payload['ref'], repo_))
+        elif event.type == 'DownloadEvent':
+            print("%s created download %s (%s)" % (ts, event.payload['name'], event.payload['description']))
         elif event.type == 'FollowEvent':
             print("%s started following %s" % (ts, event.payload['target'].login))
         elif event.type == 'ForkEvent':
@@ -812,6 +841,8 @@ def log(opts):
             print("%s %s %s to %s" % (ts, event.payload['action'], event.payload['member'].login, repo))
         elif event.type == 'PublicEvent':
             print("%s made %s open source" % repo)
+        elif event.type == 'PullRequestReviewCommentEvent':
+            print("%s commented on a pull request for commit %s%s" % (ts, event.payload['comment'].commit_id[:7], repo_))
         elif event.type == 'PullRequestEvent':
             print("%s %s pull_request #%s%s" % (ts, event.payload['action'], event.payload['pull_request'].number, repo_))
         elif event.type == 'PushEvent':
@@ -821,6 +852,13 @@ def log(opts):
             else:
                 commits = len(event.payload['shas'])
             print("%s pushed %d commits to %s%s" % (ts, commits, event.payload['ref'][11:], repo_))
+        elif event.type == 'ReleaseEvent':
+            print("%s released %s" % (ts, event.payload['name']))
+        elif event.type == 'StatusEvent':
+            print("%s commit %s changed to %s" % (ts, event.payload['sha'][:7], event.payload['state']))
+        elif event.type == 'TeamAddEvent':
+            what = event.payload['user'] or event.payload['repository']
+            print("%s %s %s was added to team %s" % (ts, what.__class__.lower(), what.name, event.payload['team'].name))
         elif event.type == 'WatchEvent':
             print("%s %s watching %s" % (ts, event.payload['action'], repo))
         else:
