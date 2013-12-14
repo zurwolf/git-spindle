@@ -9,7 +9,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Using github from the CLI &mdash; git-hub 1.16 documentation</title>
+    <title>Using github from the CLI &mdash; git-hub 1.17 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -18,7 +18,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    '',
-        VERSION:     '1.16',
+        VERSION:     '1.17',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -29,7 +29,7 @@
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/jquery.cookie.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-hub 1.16 documentation" href="#" /> 
+    <link rel="top" title="git-hub 1.17 documentation" href="#" /> 
   </head>
   <body>
     <div class="relbar-top">
@@ -40,7 +40,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-    <li><a href="#">git-hub 1.16 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.17 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -61,9 +61,6 @@ requests.</p>
 <h2>Install info<a class="headerlink" href="#install-info" title="Permalink to this headline">¶</a></h2>
 <p>To install the latest released version:</p>
 <div class="highlight-python"><pre>pip install hub</pre>
-</div>
-<p>To install the latest development version:</p>
-<div class="highlight-python"><pre>pip install http://seveas.net/git-hub</pre>
 </div>
 </div>
 <div class="section" id="basic-usage">
@@ -109,10 +106,11 @@ Gists     9 public, 0 private</pre>
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub repos [&lt;user&gt;...]</tt></dt>
+<tt class="descname">git hub repos [--no-forks] [&lt;user&gt;...]</tt></dt>
 <dd></dd></dl>
 
-<p>List all repositories owned by a user, by default you.</p>
+<p>List all repositories owned by a user, by default you. Specify <em class="xref std std-option">--no-forks</em>
+to exclude forked repositories.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub add-public-keys [&lt;key&gt;...]</tt></dt>
@@ -139,28 +137,31 @@ instead of yours.</p>
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub create [-d &lt;description&gt;]</tt></dt>
+<tt class="descname">git hub create [--private] [-d &lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Create a repository on github for your current repository. An optional
-description can be given too. After running this command, a repository will be
-created on github and your local repository will have github as remote
+<p>Create a (possibly rivate) repository on github for your current repository. An
+optional description can be given too. After running this command, a repository
+will be created on github and your local repository will have github as remote
 &#8220;origin&#8221;, so <strong class="command">git push origin master</strong> will work.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub set-origin</tt></dt>
+<tt class="descname">git hub set-origin [--ssh|--http]</tt></dt>
 <dd></dd></dl>
 
 <p>Fix the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be set
 to your github repository. If that repository is a fork, remote &#8220;upstram&#8221; will
 be set to the repository you forked from.</p>
+<p>For origin, an SSH url is used. For upstream, set-origin defaults to adding a
+git url, but this can be overridden. For private repos SSH is used.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub clone &lt;repo&gt;</tt></dt>
+<tt class="descname">git hub clone [--ssh|--http] &lt;repo&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Clone a github repository by name (e.g. seveas/hacks) or URL. If it&#8217;s a fork,
-the &#8220;upstream&#8221; origin will be set up too.</p>
+the &#8220;upstream&#8221; origin will be set up too. Defaults to cloning from a git url,
+but this can be overridden. For private repos SSH is used.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub cat &lt;file&gt;</tt></dt>
@@ -171,7 +172,7 @@ and refs. For example: <cite>master:git-hub</cite>,  <cite>git-hub:master:git-hu
 <cite>seveas/git-hub:master:git-hub</cite>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub fork [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub fork [--ssh|--http] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Fork another person&#8217;s git repository on github and clones that repository
@@ -187,10 +188,12 @@ fork of that repository.</p>
 <p>List all forks of this repository, highlighting the original repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub add-remote [&lt;user&gt;]</tt></dt>
+<tt class="descname">git hub add-remote [--ssh|--http] [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.</p>
+<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
+Defaults to adding a git url, but this can be overridden. For private repos
+SSH is used.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub browse [--parent]</tt></dt>
@@ -199,7 +202,7 @@ fork of that repository.</p>
 <p>Browse the repository (or its parent) on GitHub</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub mirror [--goblet] [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub mirror [--ssh|--http] [--goblet] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Mirror a repository from github. This is similar to clone, but clones into a
@@ -286,6 +289,11 @@ command output to github, for example: <strong class="command">fortune | git hub
 </div>
 <div class="section" id="other">
 <h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub calendar [&lt;user&gt;...]</tt></dt>
+<dd></dd></dl>
+
 <p>Show a timeline of a your activity, or that of another user. The timeline will
 look like that on your github profile page:</p>
 <div class="highlight-python"><pre>  Sep Oct     Nov     Dec       Jan     Feb     Mar       Apr     May     Jun       Jul     Aug     Sep
@@ -297,6 +305,12 @@ W   <span style="">■ </span><span style="color: #5f875f">■ </span><span styl
 F <span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span>
   <span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span></pre>
 </div>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub render &lt;file&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Lets GitHub render a markdown page and displays the result in your browser.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub ignore [&lt;lang&gt;...]</tt></dt>
@@ -363,7 +377,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-    <li><a href="#">git-hub 1.16 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.17 documentation</a> &raquo;</li>
  
       </ul>
     </div>
