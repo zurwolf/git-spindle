@@ -28,6 +28,8 @@ import re
 import requests
 import socket
 import sys
+import tempfile
+import time
 import webbrowser
 from whelk import Shell
 shell = Shell(encoding='utf-8')
@@ -60,7 +62,10 @@ attr    = Attr(normal=0, bright=1, faint=2, underline=4, negative=7, conceal=8, 
 esc = '\033'
 mode = lambda *args: "%s[%sm" % (esc, ';'.join([str(x) for x in args if x is not None]))
 reset = mode(attr.normal)
-wrap = lambda text, *args: "%s%s%s" % (mode(*args), text, reset)
+if sys.stdout.isatty():
+    wrap = lambda text, *args: "%s%s%s" % (mode(*args), text, reset)
+else:
+    wrap = lambda text, *args: text
 
 erase_line = esc + '[K'
 erase_display = esc + '[2J'
@@ -80,7 +85,7 @@ Usage:
   git-hub calendar [<user>]
   git-hub cat <file>...
   git-hub clone [--ssh|--http] <repo>
-  git-hub create [-d <description>]
+  git-hub create [--private] [-d <description>]
   git-hub edit-hook <name> [<setting>...]
   git-hub fork [--ssh|--http] [<repo>]
   git-hub forks
@@ -91,13 +96,14 @@ Usage:
   git-hub issue [--parent] <issue>...
   git-hub issues [--parent] [<filter>...]
   git-hub log [<what>]
-  git-hub mirror [--goblet] [<repo>]
+  git-hub mirror [--ssh|--http] [--goblet] [<repo>]
   git-hub network [<level>]
   git-hub public-keys <user>
   git-hub pull-request [--issue=<issue>] [<branch1:branch2>]
   git-hub remove-hook <name>
-  git-hub repos [<user>]
-  git-hub set-origin
+  git-hub render <file>
+  git-hub repos [--no-forks] [<user>]
+  git-hub set-origin [--ssh|--http]
   git-hub whoami
   git-hub whois <user>...
 
@@ -207,7 +213,7 @@ def create(opts):
     gh = github()
     if name in [x.name for x in gh.iter_repos()]:
         err("Repository already exists")
-    gh.create_repo(name=name, description=opts['<description>'] or "")
+    gh.create_repo(name=name, description=opts['<description>'] or "", private=opts['--private'])
     set_origin(opts)
 
 @command
@@ -227,7 +233,12 @@ def set_origin(opts):
 
     if repo.fork:
         parent = repo.parent
-        shell.git('config', 'remote.upstream.url', parent.git_url)
+        url = parent.git_url
+        if opts['--ssh'] or parent.private:
+            url = parent.ssh_url
+        elif opts['--http']:
+            url = parent.clone_url
+        shell.git('config', 'remote.upstream.url', url)
         shell.git('config', 'remote.upstream.fetch', '+refs/heads/*:refs/remotes/upstream/*')
     else:
         # If issues are enabled, fetch pull requests
@@ -242,12 +253,25 @@ def set_origin(opts):
 def repos(opts):
     """[user] List all repos of a user, by default yours"""
     gh = github()
-    user = (opts['<user>'] or [gh.user().login])[0]
-    repos = list(gh.iter_user_repos(user))
+    if opts['<user>']:
+        repos = list(gh.iter_user_repos(opts['<user>'][0], type='all'))
+    else:
+        repos = list(gh.iter_repos(type='all'))
+        opts['<user>'] = [gh.user().login]
     maxlen = max([len(x.name) for x in repos])
     fmt = "%%-%ds %%s" % maxlen
     for repo in repos:
-        print(wrap(fmt % (repo.name, repo.description), attr.faint if repo.fork else attr.normal))
+        color = [attr.normal]
+        if repo.private:
+            color.append(fgcolor.red)
+        if repo.fork:
+            if opts['--no-forks']:
+                continue
+            color.append(attr.faint)
+        name = repo.name
+        if opts['<user>'][0] != repo.owner.login:
+            name = '%s/%s' % (repo.owner.login, name)
+        print(wrap(fmt % (name, repo.description), *color))
 
 @command
 def clone(opts):
@@ -267,7 +291,7 @@ def clone(opts):
     url = repo.ssh_url
     if gh.user().login != user:
         url = repo.git_url
-        if opts['--ssh']:
+        if opts['--ssh'] or repo.private:
             url = repo.ssh_url
         elif opts['--http']:
             url = repo.clone_url
@@ -308,7 +332,7 @@ def mirror(opts):
 
     if not os.path.exists(git_dir):
         url = repo.git_url
-        if opts['--ssh']:
+        if opts['--ssh'] or repo.private:
             url = repo.ssh_url
         elif opts['--http']:
             url = repo.clone_url
@@ -349,8 +373,9 @@ def mirror(opts):
 
 @command
 def fork(opts):
-    gh = github()
     """Fork a repo and clone it"""
+    gh = github()
+    me = gh.user()
     if not opts['<repo>']:
         repo = get_repo()
         user, repo = repo.owner.login, repo.name
@@ -363,7 +388,7 @@ def fork(opts):
     if repo.endswith('.git'):
         repo = repo[:-4]
 
-    if repo in [x.name for x in gh.iter_repos()]:
+    if repo in [x.name for x in gh.iter_repos() if x.owner.login == me.login]:
         err("Repository already exists")
     repo_ = gh.repository(user, repo)
     if not repo_:
@@ -425,7 +450,7 @@ def add_remote(opts):
     for fork in forks:
         if fork.owner.login in opts['<user>']:
             url = fork.git_url
-            if opts['--ssh']:
+            if opts['--ssh'] or fork.private:
                 url = fork.ssh_url
             elif opts['--http']:
                 url = fork.clone_url
@@ -464,6 +489,12 @@ def whois(opts):
                 print("%s key%s...%s (%s)" % (algo, ' ' * (6 - len(algo)), key[-10:], pkey.title))
             else:
                 print("%s key%s...%s" % (algo, ' ' * (6 - len(algo)), key[-10:]))
+        # XXX User.iter_orgs is not yet in a released version of github3.py.
+        # Remove check when released and dependencies updated
+        if hasattr(user, 'iter_orgs'):
+            orgs = list(user.iter_orgs())
+            if orgs:
+                print("Member of %s" % ', '.join([x.login for x in orgs]))
 
 @command
 def whoami(opts):
@@ -572,7 +603,11 @@ def pull_request(opts):
 
     # Do we have the dst locally?
     for remote in check(shell.git('remote')).stdout.strip().split("\n"):
-        if check(shell.git('config', 'remote.%s.url' % remote)).stdout.strip() in [parent.git_url, parent.ssh_url, parent.clone_url]:
+        url = check(shell.git('config', 'remote.%s.url' % remote)).stdout.strip()
+        if url in [parent.git_url, parent.ssh_url, parent.clone_url]:
+            if parent.private and url != parent.ssh_url:
+                err("You should configure %s/%s to fetch via ssh, it is a private repo" % (parent.owner.login, parent.name))
+            check(shell.git('fetch', remote))
             break
     else:
         err("You don't have %s/%s configured as a remote repository" % (parent.owner.login, parent.name))
@@ -611,7 +646,7 @@ def pull_request(opts):
     body += "\n#\n# " + try_decode(check(shell.git('diff', '--stat', '%s^..%s' % (commits[0], commits[-1]))).stdout).strip().replace('\n', '\n#')
     temp_file = os.path.join(check(shell.git('rev-parse', '--git-dir')).stdout.strip(), 'PULL_REQUEST_EDITMSG')
     with open(temp_file, 'w') as fd:
-        fd.write("%s\n\n%s" % (title,body))
+        fd.write(("%s\n\n%s" % (title,body)).encode('utf-8'))
     getattr(shell, check(shell.git('var', 'GIT_EDITOR')).stdout.strip())(temp_file, redirect=False)
     with open(temp_file) as fd:
         title, body = (try_decode(fd.read()) +'\n').split('\n', 1)
@@ -775,6 +810,17 @@ def cat(opts):
             print(content.decoded)
         else:
             sys.stderr.write("No such file: %s\n" % file)
+
+@command
+def render(opts):
+    with open(opts['<file>'][0]) as fd:
+        data = fd.read()
+    html = github3.markdown(data)
+    with tempfile.NamedTemporaryFile(suffix='.html') as fd:
+        fd.write(html)
+        fd.flush()
+        webbrowser.open('file://' + fd.name)
+        time.sleep(1)
 
 @command
 def log(opts):
