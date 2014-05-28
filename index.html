@@ -1,6 +1,5 @@
 
 
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
@@ -9,16 +8,16 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Using github from the CLI &mdash; git-hub 1.20 documentation</title>
+    <title>Using github from the CLI &mdash; git-hub 1.21 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-    <link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Noticia+Text|Open+Sans|Droid+Sans+Mono" type="text/css" />
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noticia+Text|Open+Sans|Droid+Sans+Mono" type="text/css" />
     
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '',
-        VERSION:     '1.20',
+        URL_ROOT:    './',
+        VERSION:     '1.21',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,9 +26,8 @@
     <script type="text/javascript" src="_static/jquery.js"></script>
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
-    <script type="text/javascript" src="_static/jquery.cookie.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-hub 1.20 documentation" href="#" /> 
+    <link rel="top" title="git-hub 1.21 documentation" href="#" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
   </head>
   <body>
@@ -41,7 +39,7 @@
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
-    <li><a href="#">git-hub 1.20 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.21 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -61,7 +59,8 @@ requests.</p>
 <div class="section" id="install-info">
 <h2>Install info<a class="headerlink" href="#install-info" title="Permalink to this headline">¶</a></h2>
 <p>To install the latest released version:</p>
-<div class="highlight-python"><pre>pip install hub</pre>
+<div class="highlight-python"><div class="highlight"><pre>pip install hub
+</pre></div>
 </div>
 </div>
 <div class="section" id="basic-usage">
@@ -78,7 +77,7 @@ token with anyone as it gives full access to your github account.</p>
 
 <p>A simple command to try out is <strong class="command">git hub whoami</strong>, which tells you what
 github thinks about who you are. For example:</p>
-<div class="highlight-python"><pre>dennis@lightning:~$ git hub whoami
+<div class="highlight-python"><div class="highlight"><pre>dennis@lightning:~$ git hub whoami
 Github user: seveas
 GitHub password:
 <span style="font-weight: bold; text-decoration: underline">Dennis Kaarsemaker</span>
@@ -89,7 +88,8 @@ Location  Amsterdam
 Company   Booking.com
 Repos     36 public, 0 private
 Gists     4 public, 0 private
-RSA key   ...N0nFw3oW5l (Dennis)</pre>
+RSA key   ...N0nFw3oW5l (Dennis)
+</pre></div>
 </div>
 <dl class="describe">
 <dt>
@@ -97,13 +97,14 @@ RSA key   ...N0nFw3oW5l (Dennis)</pre>
 <dd></dd></dl>
 
 <p>If you want to see this information about other users, use <strong class="command">git hub whois</strong>:</p>
-<div class="highlight-python"><pre>dennis@lightning:~$ git hub whois sigmavirus24
+<div class="highlight-python"><div class="highlight"><pre>dennis@lightning:~$ git hub whois sigmavirus24
 <span style="font-weight: bold; text-decoration: underline">Ian Cordasco</span>
 Profile   https://github.com/sigmavirus24
 Email     graffatcolmingov@gmail.com
 Blog      http://www.coglib.com/~icordasc/blog
 Repos     21 public, 0 private
-Gists     9 public, 0 private</pre>
+Gists     9 public, 0 private
+</pre></div>
 </div>
 <dl class="describe">
 <dt>
@@ -111,17 +112,18 @@ Gists     9 public, 0 private</pre>
 <dd></dd></dl>
 
 <p>Shows the last few GitHub status messages:</p>
-<div class="highlight-python"><pre>dennis@lightning:~$ git hub status
+<div class="highlight-python"><div class="highlight"><pre>dennis@lightning:~$ git hub status
 <span style="">2014-04-01 23:06</span> <span style="color: yellow">minor</span> Pages builds are paused while we investigate an increase in failed builds
 <span style="">2014-04-01 23:22</span> <span style="color: green">good </span> Everything operating normally.
-<span style="">2014-04-02 00:05</span> <span style="color: yellow">minor</span> We're investigating reports of git operation failures.
-<span style="">2014-04-02 00:29</span> <span style="color: red">major</span> We're experiencing problems with repo operations and are working to restore functionality.
+<span style="">2014-04-02 00:05</span> <span style="color: yellow">minor</span> We&#39;re investigating reports of git operation failures.
+<span style="">2014-04-02 00:29</span> <span style="color: red">major</span> We&#39;re experiencing problems with repo operations and are working to restore functionality.
 <span style="">2014-04-02 01:00</span> <span style="color: red">major</span> Git and HTTPS repo operations are intermittently unavailable while we repair the source of the problem.
-<span style="">2014-04-02 01:22</span> <span style="color: red">major</span> SSH git operations have been restored and we're working to fix HTTPS functionality.
+<span style="">2014-04-02 01:22</span> <span style="color: red">major</span> SSH git operations have been restored and we&#39;re working to fix HTTPS functionality.
 <span style="">2014-04-02 01:40</span> <span style="color: yellow">minor</span> We have implemented a fix for the issue and git operations are recovering.
 <span style="">2014-04-02 01:47</span> <span style="color: green">good </span> Everything operating normally.
-<span style="">2014-04-03 09:55</span> <span style="color: yellow">minor</span> We're currently investigating issues with operations against a small percentage of repositories.
-<span style="">2014-04-03 10:14</span> <span style="color: green">good </span> Everything operating normally.</pre>
+<span style="">2014-04-03 09:55</span> <span style="color: yellow">minor</span> We&#39;re currently investigating issues with operations against a small percentage of repositories.
+<span style="">2014-04-03 10:14</span> <span style="color: green">good </span> Everything operating normally.
+</pre></div>
 </div>
 <dl class="describe">
 <dt>
@@ -272,11 +274,13 @@ for. A list of all events can be found on the <a class="reference external" href
 specify <em class="xref std std-option">--parent</em>, list all open issues for the parent repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub issue [--parent] &lt;issue&gt;...</tt></dt>
+<tt class="descname">git hub issue [--parent] [&lt;issue&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>Shows details about the mentioned issue numbers. As with <em class="xref std std-option">issues</em>, you
-can use the <em class="xref std std-option">--parent</em> option to use the parent repository.</p>
+can use the <em class="xref std std-option">--parent</em> option to use the parent repository. If you do
+not specify an issue number, you will be prompted for a message that will be
+used to create a new issue.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub pull-request [--issue &lt;issue&gt;] &lt;yours:theirs&gt;</tt></dt>
@@ -317,14 +321,15 @@ command output to github, for example: <strong class="command">fortune | git hub
 
 <p>Show a timeline of a your activity, or that of another user. The timeline will
 look like that on your github profile page:</p>
-<div class="highlight-python"><pre>  Sep Oct     Nov     Dec       Jan     Feb     Mar       Apr     May     Jun       Jul     Aug     Sep
+<div class="highlight-python"><div class="highlight"><pre>  Sep Oct     Nov     Dec       Jan     Feb     Mar       Apr     May     Jun       Jul     Aug     Sep
     <span style="">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #008700">■ </span><span style="color: #005f00">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #008700">■ </span><span style="color: #5f8700">■ </span><span style="color: #008700">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span>
 M   <span style="">■ </span><span style="color: #005f00">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #008700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #005f00">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span>
     <span style="">■ </span><span style="color: #005f00">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span>
 W   <span style="">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span>
   <span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span>
 F <span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span>
-  <span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span></pre>
+  <span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span>
+</pre></div>
 </div>
 <dl class="describe">
 <dt>
@@ -347,7 +352,8 @@ environments. This command will let you quickly grab them and add them to your
 
 <p>Generates a graphviz graph of people following you, people you follow or people
 who&#8217;s repositories you&#8217;ve forked. For example:</p>
-<div class="highlight-python"><pre>git hub network | dot -T png -Grankdir=LR &gt; network.png</pre>
+<div class="highlight-python"><div class="highlight"><pre>git hub network | dot -T png -Grankdir=LR &gt; network.png
+</pre></div>
 </div>
 <p>Here&#8217;s mine:</p>
 <img alt="_images/network.png" src="_images/network.png" />
@@ -359,10 +365,9 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         </div>
       </div>
       <div class="sphinxsidebar">
-        <div class="sphinxsidebarwrapper">
-  <div class="sphinxlocaltoc">
-  <h3><a href="#">Table Of Contents</a></h3>
-  <ul>
+        <div class="sphinxsidebarwrapper"><div class="sphinxlocaltoc">
+    <h3><a href="#">Page contents</a></h3>
+    <ul>
 <li><a class="reference internal" href="#">Using github from the CLI</a><ul>
 <li><a class="reference internal" href="#install-info">Install info</a></li>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
@@ -400,7 +405,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" style="margin-right: 10px">
           <a href="genindex.html" title="General Index"
              >index</a></li>
-    <li><a href="#">git-hub 1.20 documentation</a> &raquo;</li>
+    <li><a href="#">git-hub 1.21 documentation</a> &raquo;</li>
  
       </ul>
     </div>
