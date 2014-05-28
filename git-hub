@@ -139,7 +139,7 @@ Usage:
   git-hub gists [<user>]
   git-hub hooks
   git-hub ignore [<language>...]
-  git-hub issue [--parent] <issue>...
+  git-hub issue [--parent] [<issue>...]
   git-hub issues [--parent] [<filter>...]
   git-hub log [--type=<type>] [<what>]
   git-hub mirror [--ssh|--http] [--goblet] [<repo>]
@@ -149,6 +149,7 @@ Usage:
   git-hub remove-hook <name>
   git-hub render <file>
   git-hub repos [--no-forks] [<user>]
+  git-hub run-shell
   git-hub say [<msg>]
   git-hub set-origin [--ssh|--http]
   git-hub status
@@ -178,8 +179,8 @@ def err(msg):
     sys.stderr.write(msg + "\n")
     sys.exit(1)
 
-def check(result):
-    if result.returncode != 0:
+def check(result, must_succeed=True):
+    if result.returncode != 0 and must_succeed:
         print(result.stderr.rstrip())
         sys.exit(result.returncode)
     return result
@@ -210,8 +211,18 @@ def github():
         # main gh object having a username/password and thus getting into a 2fa loop
         gh2 = github3.GitHub()
         gh2.login(user, password, two_factor_callback=prompt_for_2fa)
-        auth = gh2.authorize(user, password, ['user', 'repo', 'gist'],
-                "Github Git integration on %s" % socket.gethostname(), "http://seveas.github.com/git-hub")
+        try:
+            auth = gh2.authorize(user, password, ['user', 'repo', 'gist'],
+                    "Github Git integration on %s" % socket.gethostname(), "http://seveas.github.com/git-hub")
+        except github3.GitHubError:
+            type, exc, tb = sys.exc_info()
+            if hasattr(exc, 'response'):
+                response = exc.response
+                if response.status_code == 422:
+                    for error in response.json()['errors']:
+                        if error['resource'] == 'OauthAccess' and error['code'] == 'already_exists':
+                            err("An OAuth token for this host already exists, please delete it on https://github.com/settings/applications")
+            raise type, exc, tb
         token = auth.token
         shell.git('config', '--file', config_file, 'github.token', token)
         shell.git('config', '--file', config_file, 'github.auth_id', str(auth.id))
@@ -230,7 +241,7 @@ def github():
     os.umask(old_umask)
     return gh
 
-def get_repo():
+def get_repo(must_be_in_repo=True):
     # Find the repo on github by searching for remotes hosted on github in the
     # following order
     # - A remote owned by the current user
@@ -241,7 +252,8 @@ def get_repo():
     gh = github()
     me = gh.user().login
     mine = origin = upstream = repo = None
-    check(shell.git('rev-parse', '--git-dir'))
+    if not check(shell.git('rev-parse', '--git-dir'), must_be_in_repo):
+        return
     remotes = shell.git('config', '--get-regexp', 'remote\..*\.url', 'github.com').stdout.strip().splitlines()
     for remote in reversed(remotes):
         m = re.match('^remote\.([^.]*)\.url.*?(gist.)?github.com[/:](?:([^/]*)/)?([^/]*?)(?:\.git)?$', remote)
@@ -538,20 +550,31 @@ def forks(opts):
 @command
 def issues(opts):
     """List issues"""
-    repo = get_repo()
-    if repo.fork and opts['--parent']:
-        repo = repo.parent
-    filters = dict([x.split('=', 1) for x in opts['<filter>']])
-    try:
-        for issue in repo.iter_issues(**filters):
+    repo = get_repo(False)
+    if not repo:
+        repos = list(github().iter_repos(type='all'))
+    else:
+        repos = [repo]
+    for repo in repos:
+        if repo.fork and opts['--parent']:
+            repo = repo.parent
+        filters = dict([x.split('=', 1) for x in opts['<filter>']])
+        try:
+            issues = list(repo.iter_issues(**filters))
+        except github3.GitHubError:
+            _, err, _ = sys.exc_info()
+            if err.code == 410:
+                if len(repos) == 1:
+                    print(err.message)
+                continue
+            else:
+                raise
+        if not issues:
+            continue
+        print(wrap("Issues for %s/%s" % (repo.owner.login, repo.name), attr.bright))
+        for issue in issues:
             url = issue.pull_request and issue.pull_request['html_url'] or issue.html_url
             print("[%d] %s %s" % (issue.number, issue.title, url))
-    except github3.GitHubError:
-        _, err, _ = sys.exc_info()
-        if err.code == 410:
-            print(err.message)
-        else:
-            raise
 
 @command
 def issue(opts):
@@ -564,6 +587,18 @@ def issue(opts):
         print(wrap(issue.title, attr.bright, attr.underline))
         print(issue.body)
         print(issue.pull_request and issue.pull_request['html_url'] or issue.html_url)
+    if not opts['<issue>']:
+        body = """
+# Reporting an issue on %s/%s
+# Please describe the issue as clarly as possible. Lines starting with '#' will
+# be ignored, the first line will be used as title for the issue.
+#""" % (repo.owner.login, repo.name)
+        title, body = edit_msg(body, 'ISSUE_EDITMSG')
+        if not body:
+            err("Empty issue message")
+
+        issue = repo.create_issue(title=title, body=body)
+        print("Issue %d created %s" % (issue.number, issue.html_url))
 
 @command
 def add_remote(opts):
@@ -769,9 +804,17 @@ def pull_request(opts):
 #""" % (repo.owner.login, src, parent.owner.login, dst)
     body += "\n# " + try_decode(check(shell.git('shortlog', '%s/%s..%s' % (remote, dst, src))).stdout).strip().replace('\n', '\n# ')
     body += "\n#\n# " + try_decode(check(shell.git('diff', '--stat', '%s^..%s' % (commits[0], commits[-1]))).stdout).strip().replace('\n', '\n#')
-    temp_file = os.path.join(check(shell.git('rev-parse', '--git-dir')).stdout.strip(), 'PULL_REQUEST_EDITMSG')
+    title, body = edit_msg("%s\n\n%s" % (title,body), 'PULL_REQUEST_EDIT_MSG')
+    if not body:
+        err("No pull request message specified")
+
+    pull = parent.create_pull(base=dst, head='%s:%s' % (repo.owner.login, src), title=title, body=body)
+    print("Pull request %d created %s" % (pull.number, pull.html_url))
+
+def edit_msg(msg, filename):
+    temp_file = os.path.join(check(shell.git('rev-parse', '--git-dir')).stdout.strip(), filename)
     with open(temp_file, 'w') as fd:
-        fd.write(("%s\n\n%s" % (title,body)).encode('utf-8'))
+        fd.write(msg.encode('utf-8'))
     editor = shlex.split(check(shell.git('var', 'GIT_EDITOR')).stdout) + [temp_file]
     shell[editor[0]](*editor[1:], redirect=False)
     with open(temp_file) as fd:
@@ -779,11 +822,7 @@ def pull_request(opts):
     title = title.strip()
     body = body.strip()
     body = re.sub('^#.*', '', body, flags=re.MULTILINE).strip()
-    if not body:
-        err("No pull request message specified")
-
-    pull = parent.create_pull(base=dst, head='%s:%s' % (repo.owner.login, src), title=title, body=body)
-    print("Pull request %d created %s" % (pull.number, pull.html_url))
+    return title, body
 
 @command
 def network(opts):
@@ -1151,5 +1190,27 @@ def status(opts):
         color = {'good': fgcolor.green, 'minor': fgcolor.yellow, 'major': fgcolor.red}[message['status']]
         ts = datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec) - datetime.timedelta(0,offset)
         print('%s %s %s' % (wrap(ts.strftime('%Y-%m-%d %H:%M'), attr.faint), wrap("%-5s" % message['status'], color), message['body']))
+
+@command
+def run_shell(opts):
+    import code
+    import readline
+    import rlcompleter
+    gh = github()
+
+    data = dict([(x.__name__, x) for x in commands.values()])
+    data.update({
+        'github':  gh,
+        'github3': github3,
+        'me':      gh.user(),
+        'opts':    opts,
+        'repo':    get_repo(False),
+        'shell':   shell,
+    })
+    readline.set_completer(rlcompleter.Completer(data).complete)
+    readline.parse_and_bind("tab: complete")
+    shl = code.InteractiveConsole(data)
+    shl.interact()
+    sys.exit(1)
 
 main()
