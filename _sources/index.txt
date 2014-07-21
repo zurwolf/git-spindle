@@ -171,7 +171,7 @@ for. A list of all events can be found on the `GitHub API page`_
 
 Edit one or more settings for a hook.
 
-.. describe:: git-hub remove-hook <name>
+.. describe:: git hub remove-hook <name>
 
 Remove a service hook.
 
@@ -203,6 +203,12 @@ that is not ascii or utf-8, git hub will misbehave.
 
 If you specify an issue number, that issue will be turned into a pull request
 and you will not be asked to write a pull request message.
+
+.. describe:: git hub apply-pr <pr-number>
+
+GitHub makes it easy for you to merge pull requests, but if you want to keep
+your history linear, this one is for you. It applies a pull request using
+:command:`git cherry-pick` instead of merging.
 
 .. _`filters`: http://github3py.readthedocs.org/en/latest/repos.html#github3.repos.Repository.list_issues
 

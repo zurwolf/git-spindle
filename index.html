@@ -258,7 +258,7 @@ for. A list of all events can be found on the <a class="reference external" href
 <p>Edit one or more settings for a hook.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git-hub remove-hook &lt;name&gt;</tt></dt>
+<tt class="descname">git hub remove-hook &lt;name&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Remove a service hook.</p>
@@ -294,6 +294,14 @@ be merged. Note that if you use any characterset in your logs and filenames
 that is not ascii or utf-8, git hub will misbehave.</p>
 <p>If you specify an issue number, that issue will be turned into a pull request
 and you will not be asked to write a pull request message.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub apply-pr &lt;pr-number&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>GitHub makes it easy for you to merge pull requests, but if you want to keep
+your history linear, this one is for you. It applies a pull request using
+<strong class="command">git cherry-pick</strong> instead of merging.</p>
 </div>
 <div class="section" id="gists">
 <h2>Gists<a class="headerlink" href="#gists" title="Permalink to this headline">¶</a></h2>
