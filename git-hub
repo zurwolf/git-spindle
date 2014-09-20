@@ -110,14 +110,6 @@ def _gist_contents(self, path, ref):
         if f.filename == path:
             return Content(f)
 github3.gists.Gist.contents = _gist_contents
-def _iter_gist_forks(self):
-    for fork in self._iter_forks():
-        fork['files'] = []
-        fork['owner'] = fork['user']
-        fork['html_url'] = 'https://gist.github.com/%s/%s' % (fork['user']['login'], fork['id'])
-        yield github3.gists.Gist(fork)
-github3.gists.Gist._iter_forks = github3.gists.Gist.iter_forks
-github3.gists.Gist.iter_forks = _iter_gist_forks
 
 def main():
     usage = """github integration for git
@@ -128,7 +120,7 @@ Usage:
   git-hub add-public-keys [<key>...]
   git-hub add-remote [--ssh|--http] <user>
   git-hub apply-pr <pr-number>
-  git-hub browse [--parent]
+  git-hub browse [--parent] [<repo>] [<section>]
   git-hub calendar [<user>]
   git-hub cat <file>...
   git-hub clone [--ssh|--http] <repo>
@@ -170,6 +162,8 @@ Options:
     opts = docopt.docopt(usage)
     for command in commands:
         if opts[command]:
+            opts['command'] = command
+            opts.update(commands[command].opts)
             try:
                 commands[command](opts)
             except KeyboardInterrupt:
@@ -187,7 +181,10 @@ def check(result, must_succeed=True):
     return result
 
 commands = {}
-def command(fnc):
+def command(fnc=None, **kwargs):
+    if not fnc:
+        return lambda func: command(func, **kwargs)
+    fnc.opts = kwargs
     commands[fnc.__name__.replace('_','-')] = fnc
     return fnc
 
@@ -242,9 +239,10 @@ def github():
     os.umask(old_umask)
     return gh
 
-def get_repo(must_be_in_repo=True):
+def get_repo(opts):
     # Find the repo on github by searching for remotes hosted on github in the
     # following order
+    # - The repo specified in the arguments
     # - A remote owned by the current user
     # - A remote named 'origin'
     # - A remote named 'upstream'
@@ -252,8 +250,33 @@ def get_repo(must_be_in_repo=True):
     # - A repository on github with the same name as the current directory
     gh = github()
     me = gh.user().login
+    if opts['<repo>']:
+        if '/' in opts['<repo>']:
+            if 'gist.github.com' in opts['<repo>']:
+                user, repo = 'gist', opts['<repo>'].rsplit('/',1)[-1]
+            else:
+                user, repo = opts['<repo>'].rsplit('/',2)[-2:]
+        else:
+            user, repo = gh.user().login, opts['<repo>']
+        if repo.endswith('.git'):
+            repo = repo[:-4]
+
+        if user == 'gist':
+            # This is a gist, not a normal repo
+            repo_ = gh.gist(repo)
+            if not repo_:
+                err("Gist %s does not exist" % repo)
+            user = repo_.owner.login
+        else:
+            repo_ = gh.repository(user, repo)
+            if not repo_:
+                err("Repository %s/%s does not exist" % (user, repo))
+        if repo_.fork and opts['--parent']:
+            repo_ = repo_.parent
+        return repo_
+
     mine = origin = upstream = repo = None
-    if not check(shell.git('rev-parse', '--git-dir'), must_be_in_repo):
+    if not check(shell.git('rev-parse', '--git-dir'), opts.get('require_repo', True)):
         return
     remotes = shell.git('config', '--get-regexp', 'remote\..*\.url', 'github.com').stdout.strip().splitlines()
     for remote in reversed(remotes):
@@ -278,6 +301,8 @@ def get_repo(must_be_in_repo=True):
     if not repo:
         repo = os.path.basename(shell.git('rev-parse', '--show-toplevel').stdout.strip())
         repo = gh.repository(me, repo)
+    if repo.fork and opts['--parent']:
+        repo = repo.parent
     return repo
 
 @command
@@ -296,7 +321,7 @@ def set_origin(opts):
     """Set the remote 'origin' to github.\n  If this is a fork, set the remote 'upstream' to the parent"""
     gh = github()
     me = gh.user()
-    repo = get_repo()
+    repo = get_repo(opts)
     # Is this mine? No? Do I have a clone?
     if repo.owner.login != me.login:
         my_repo = gh.repository(me, repo.name)
@@ -373,30 +398,10 @@ def repos(opts):
 @command
 def clone(opts):
     """Clone a repository by name"""
-    gh = github()
-    if '/' in opts['<repo>']:
-        if 'gist.github.com' in opts['<repo>']:
-            user, repo = 'gist', opts['<repo>'].rsplit('/',1)[-1]
-        else:
-            user, repo = opts['<repo>'].rsplit('/',2)[-2:]
-    else:
-        user, repo = gh.user().login, opts['<repo>']
-    if repo.endswith('.git'):
-        repo = repo[:-4]
-
-    if user == 'gist':
-        # This is a gist, not a normal repo
-        repo_ = gh.gist(repo)
-        if not repo_:
-            err("Gist %s does not exist" % repo)
-        user = repo_.owner.login
-    else:
-        repo_ = gh.repository(user, repo)
-        if not repo_:
-            err("Repository %s/%s does not exist" % (user, repo))
-    repo = repo_
+    me = github().user()
+    repo = get_repo(opts)
     url = repo.ssh_url
-    if gh.user().login != user:
+    if me.login != repo.owner.login:
         url = repo.git_url
     if opts['--ssh'] or repo.private:
         url = repo.ssh_url
@@ -413,60 +418,35 @@ def clone(opts):
 
 @command
 def mirror(opts):
+    repo = get_repo(opts)
     gh = github()
-    if opts['<repo>']:
-        if '/' in opts['<repo>']:
-            user, repo = opts['<repo>'].rsplit('/',2)[-2:]
-        else:
-            user, repo = gh.user().login, opts['<repo>']
-        if repo.endswith('.git'):
-            repo = repo[:-4]
-        git_dir = repo + '.git'
-        if repo == '*':
-            for repo in gh.iter_user_repos(user):
-                opts['<repo>'] = '%s/%s' % (user, repo)
-                mirror(opts)
-            for repo in gh.iter_gists(user):
-                opts['<repo>'] = 'gist/%s' % repo.name
-                mirror(opts)
-            return
-        if user == 'gist':
-            repo_ = gh.gist(repo)
-            if not repo_:
-                err("Gist %s does not exist" % repo)
-        else:
-            repo_ = gh.repository(user, repo)
-            if not repo_:
-                err("Repository %s/%s does not exist" % (user, repo))
-    else:
-        git_dir = '.'
-        repo_ = get_repo()
-        if not repo_:
-            err("Repository %s/%s does not exist" % (user, repo))
-    repo = repo_
-
-    if not os.path.exists(git_dir):
+    if opts['<repo>'] and opts['<repo>'].endswith('/*'):
+        user = opts['<repo>'].rsplit('/', 2)[-1]
+        for repo in gh.iter_user_repos(user):
+            opts['<repo>'] = '%s/%s' % (user, repo)
+            mirror(opts)
+        for repo in gh.iter_gists(user):
+            opts['<repo>'] = 'gist/%s' % repo.name
+            mirror(opts)
+        return
+    repo = get_repo(opts)
+    git_dir = repo.name + '.git'
+    cur_dir = os.path.basename(os.path.abspath(os.getcwd))
+    if cur_dir != git_dir and not os.path.exists(git_dir):
         url = repo.git_url
         if opts['--ssh'] or repo.private:
             url = repo.ssh_url
         elif opts['--http']:
             url = repo.clone_url
 
-        rc = shell.git('clone', '--mirror', url, redirect=False).returncode
-        if rc:
-            sys.exit(rc)
-
+        check(shell.git('clone', '--mirror', url, redirect=False))
     else:
         # Update the current, mirrored repo
         if shell.git('--git-dir', git_dir, 'config', 'core.bare').stdout.strip() != 'true' or \
            shell.git('--git-dir', git_dir, 'config', 'remote.origin.mirror').stdout.strip() != 'true':
                err("This is not a mirrored repository")
-        rc = shell.git('--git-dir', git_dir, 'fetch', '-q', 'origin', redirect=False).returncode
-        if rc:
-            sys.exit(rc)
-        shell.git('--git-dir', git_dir, 'remote', 'prune', 'origin', redirect=False).returncode
-        if rc:
-            sys.exit(rc)
+        check(shell.git('--git-dir', git_dir, 'fetch', '-q', 'origin', redirect=False))
+        check(shell.git('--git-dir', git_dir, 'remote', 'prune', 'origin', redirect=False))
 
     with open(os.path.join(git_dir, 'description'), 'w') as fd:
         if PY3:
@@ -491,44 +471,21 @@ def fork(opts):
     """Fork a repo and clone it"""
     gh = github()
     me = gh.user()
-    repo_ = None
-    if not opts['<repo>']:
-        repo_ = get_repo()
-        if isinstance(repo_, github3.gists.Gist):
-            user, repo = 'gist', repo_.name
-        else:
-            user, repo = repo_.owner.login, repo_.name
-        do_clone = False
-    else:
-        if '/' not in opts['<repo>']:
-            err("Usage: git hub fork url\n       git hub fork user/repo")
-        if 'gist.github.com' in opts['<repo>']:
-            user, repo = 'gist', opts['<repo>'].rsplit('/',1)[-1]
-        else:
-            user, repo = opts['<repo>'].rsplit('/',2)[-2:]
-        if user == 'gist':
-            repo_ = gh.gist(repo)
-            if not repo_:
-                err("Gist %s does not exist" % repo)
-        else:
-            repo_ = gh.repository(user, repo)
-            if not repo_:
-                err("Repository %s/%s does not exist" % (user, repo))
-        do_clone = True
+    do_clone = bool(opts['<repo>'])
+    repo = get_repo(opts)
+    if repo.owner.login == me.login:
+        err("You cannot fork your own repos")
 
-    if repo.endswith('.git'):
-        repo = repo[:-4]
-
-    if user == 'gist':
-        for fork in repo_.iter_forks():
+    if isinstance(repo, github3.gists.Gist):
+        for fork in repo.iter_forks():
             if fork.owner.login == me.login:
                 err("You already forked this gist as %s" % fork.html_url)
     else:
-        if repo in [x.name for x in gh.iter_repos() if x.owner.login == me.login]:
+        if repo.name in [x.name for x in gh.iter_repos() if x.owner.login == me.login]:
             err("Repository already exists")
 
-    my_clone = repo_.create_fork()
-    if user == 'gist':
+    my_clone = repo.create_fork()
+    if isinstance(repo, github3.gists.Gist):
         opts['<repo>'] = 'gist/%s' % my_clone.name
     else:
         opts['<repo>'] = my_clone.name
@@ -538,20 +495,18 @@ def fork(opts):
     else:
         set_origin(opts)
 
-@command
+@command(**{'--parent': True})
 def forks(opts):
     """List all forks of this repository"""
-    repo = get_repo()
-    if repo.fork:
-        repo = repo.parent
+    repo = get_repo(opts)
     print("[%s] %s" % (wrap(repo.owner.login, attr.bright), repo.html_url))
     for fork in repo.iter_forks():
         print("[%s] %s" % (fork.owner.login, fork.html_url))
 
-@command
+@command(require_repo=False)
 def issues(opts):
     """List issues"""
-    repo = get_repo(False)
+    repo = get_repo(opts)
     if not repo:
         repos = list(github().iter_repos(type='all'))
     else:
@@ -580,9 +535,7 @@ def issues(opts):
 @command
 def issue(opts):
     """Issue details"""
-    repo = get_repo()
-    if repo.fork and opts['--parent']:
-        repo = repo.parent
+    repo = get_repo(opts)
     for issue in opts['<issue>']:
         issue = repo.issue(issue)
         print(wrap(issue.title, attr.bright, attr.underline))
@@ -601,12 +554,10 @@ def issue(opts):
         issue = repo.create_issue(title=title, body=body)
         print("Issue %d created %s" % (issue.number, issue.html_url))
 
-@command
+@command(**{'--parent': True})
 def add_remote(opts):
     """Add user's fork as a remote by that name"""
-    repo = get_repo()
-    if repo.fork:
-        repo = repo.parent
+    repo = get_repo(opts)
     forks = repo.iter_forks()
     for fork in forks:
         if fork.owner.login in opts['<user>']:
@@ -717,7 +668,7 @@ def public_keys(opts):
 @command
 def pull_request(opts):
     """Opens a pull request to merge your branch1 to upstream branch2"""
-    repo = get_repo()
+    repo = get_repo(opts)
     if repo.fork:
         parent = repo.parent
     else:
@@ -730,7 +681,7 @@ def pull_request(opts):
     if not src:
         src = check(shell.git('rev-parse', '--abbrev-ref', 'HEAD')).stdout.strip()
     if not dst:
-        dst = 'master'
+        dst = parent.default_branch
 
     if src == dst and parent == repo:
         err("Cannot file a pull request on the same branch")
@@ -828,7 +779,7 @@ def edit_msg(msg, filename):
 @command
 def apply_pr(opts):
     gh = github()
-    repo = get_repo()
+    repo = get_repo(opts)
     pr = repo.pull_request(opts['<pr-number>'])
     if not pr:
         err("Pull request %s does not exist" % opts['<pr-number>'])
@@ -856,8 +807,13 @@ def apply_pr(opts):
         print("Fetching pull request")
         url = gh.repository(pr.repository[0].replace('repos/', ''), pr.repository[1]).clone_url
         shell.git('fetch', url, 'refs/pull/%d/head:refs/pull/%d/head' % (pr.number, pr.number), redirect=False)
-    print("Cherry-picking %d commit(s): %s..refs/pull/%d/head" % (pr.commits, pr.base.ref, pr.number))
-    shell.git('cherry-pick', '%s..refs/pull/%d/head' % (pr.base.ref, pr.number), redirect=False)
+    head_sha = shell.git('rev-parse', 'HEAD').stdout.strip()
+    if shell.git('merge-base', pr.head.sha, head_sha).stdout.strip() == head_sha:
+        print("Fast-forward merging %d commit(s): %s..refs/pull/%d/head" % (pr.commits, pr.base.ref, pr.number))
+        shell.git('merge', '--ff-only', 'refs/pull/%d/head' % pr.number, redirect=False)
+    else:
+        print("Cherry-picking %d commit(s): %s..refs/pull/%d/head" % (pr.commits, pr.base.ref, pr.number))
+        shell.git('cherry-pick', '%s..refs/pull/%d/head' % (pr.base.ref, pr.number), redirect=False)
 
 @command
 def network(opts):
@@ -929,7 +885,7 @@ def network(opts):
 
 @command
 def hooks(opts):
-    repo = get_repo()
+    repo = get_repo(opts)
     for hook in repo.iter_hooks():
         print(wrap("%s (%s)" % (hook.name, ', '.join(hook.events)), attr.bright))
         for key, val in sorted(hook.config.items()):
@@ -939,14 +895,14 @@ def hooks(opts):
 
 @command
 def remove_hook(opts):
-    repo = get_repo()
+    repo = get_repo(opts)
     for hook in repo.iter_hooks():
         if hook.name == opts['<name>']:
             hook.delete()
 
 @command
 def add_hook(opts):
-    repo = get_repo()
+    repo = get_repo(opts)
     for hook in repo.iter_hooks():
         if hook.name == opts['<name>']:
             raise ValueError("Hook %s already exists" % opts['<name>'])
@@ -959,7 +915,7 @@ def add_hook(opts):
 
 @command
 def edit_hook(opts):
-    repo = get_repo()
+    repo = get_repo(opts)
     for hook in repo.iter_hooks():
         if hook.name == opts['<name>']:
             break
@@ -990,10 +946,14 @@ def ignore(opts):
 @command
 def browse(opts):
     """Open the GitHub page for this repo in a browser"""
-    repo = get_repo()
-    if repo.fork and opts['--parent']:
-        repo = repo.parent
-    webbrowser.open_new(repo.html_url)
+    sections = ['issues', 'pulls', 'wiki', 'branches', 'releases', 'contributors', 'graphs', 'releases', 'settings']
+    if opts['<repo>'] in sections and not opts['<section>']:
+        opts['<repo>'], opts['<section>'] = None, opts['<repo>']
+    repo = get_repo(opts)
+    url = repo.html_url
+    if opts['<section>']:
+        url += '/' + opts['<section>']
+    webbrowser.open_new(url)
 
 @command
 def cat(opts):
@@ -1004,7 +964,7 @@ def cat(opts):
         user = None
         if repo:
             user, repo = ([None] + repo.split('/'))[-2:]
-        repo = gh.repository(user or gh.user().login, repo) if repo else get_repo()
+        repo = gh.repository(user or gh.user().login, repo) if repo else get_repo(opts)
         content = repo.contents(path=file, ref=ref)
         if content:
             print(content.decoded)
@@ -1043,6 +1003,8 @@ def log(opts):
                     err("Repository %s/%s does not exist" % (user, repo))
         else:
             what = gh.user(opts['<what>'])
+            if what.type == 'Organization':
+                logtype = 'org'
             if not what:
                 err("User %s does not exist" % opts['<what>'])
 
@@ -1069,7 +1031,7 @@ def log(opts):
             ts = wrap(ts.strftime("%Y/%m/%d %H:%M"), attr.faint)
         repo = '/'.join(event.repo)
         repo_ = ' (%s)' % repo
-        if logtype == 'repo':
+        if logtype != 'user':
             repo_ = ''
             ts += ' %s' % event.actor.login
         if event.type == 'CommitCommentEvent':
@@ -1118,8 +1080,13 @@ def log(opts):
         elif event.type == 'StatusEvent':
             print("%s commit %s changed to %s" % (ts, event.payload['sha'][:7], event.payload['state']))
         elif event.type == 'TeamAddEvent':
-            what = event.payload['user'] or event.payload['repository']
-            print("%s %s %s was added to team %s" % (ts, what.__class__.lower(), what.name, event.payload['team'].name))
+            if 'user' in event.payload:
+                what = 'user'
+                name = isinstance(event.payload['user'], dict) and event.payload['user']['name'] or event.payload['user'].name
+            else:
+                what = 'repository'
+                name = isinstance(event.payload['repository'], dict) and event.payload['repository']['name'] or event.payload['repository'].name
+                print("%s %s %s was added to team %s" % (ts, what, name, event.payload['team'].name))
         elif event.type == 'WatchEvent':
             print("%s %s watching %s" % (ts, event.payload['action'], repo))
         elif event.type == 'GistHistoryEvent':
@@ -1226,7 +1193,7 @@ def status(opts):
         ts = datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec) - datetime.timedelta(0,offset)
         print('%s %s %s' % (wrap(ts.strftime('%Y-%m-%d %H:%M'), attr.faint), wrap("%-5s" % message['status'], color), message['body']))
 
-@command
+@command(require_repo=False)
 def run_shell(opts):
     import code
     import readline
@@ -1239,7 +1206,7 @@ def run_shell(opts):
         'github3': github3,
         'me':      gh.user(),
         'opts':    opts,
-        'repo':    get_repo(False),
+        'repo':    get_repo(opts),
         'shell':   shell,
     })
     readline.set_completer(rlcompleter.Completer(data).complete)
