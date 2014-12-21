@@ -5,18 +5,19 @@ import os
 import re
 import shlex
 import sys
-import urlparse
 import whelk
 
 __all__ = ['GitSpindle', 'command', 'needs_repo', 'needs_worktree']
 
 __builtins__['PY3'] = sys.version_info[0] > 2
 if PY3:
+    import urllib.parse as urlparse
     # On python 3, shell decodes into utf-8 as above
     __builtins__['try_decode'] = lambda x: x
     # On python 3, raw_input has become input
     __builtins__['raw_input'] = input
 else:
+    import urlparse
     # Try decoding as utf-8 only
     __builtins__['try_decode'] = lambda x: x.decode('utf-8')
 
@@ -31,12 +32,14 @@ del pprint
 
 class Repository(object):
     spindle = 'gitspindle'
+    owner = None
     def __init__(self, url):
-        self.name = name
         self.url = url
 
 class GitSpindle(Singleton):
     spindle = 'gitspindle'
+    prog = 'git spindle'
+    what = ''
 
     def __init__(self):
         self.shell = whelk.Shell(encoding='utf-8')
@@ -92,7 +95,7 @@ Options:
         backend = self.git('config', 'remote.%s.spindle' % remote).stdout.strip()
         if not backend:
             if os.path.exists(url):
-                return Repository
+                return GitSpindle()
             if '://' not in url and ':' in url:
                 # SSH url, transform to ssh:// syntax
                 url = 'ssh://' + url.replace(':', '/')
@@ -102,31 +105,36 @@ Options:
                 host = host[host.find('@') +1:]
             if host in ('gist.github.com', 'github.com', 'www.github.com'):
                 backend = 'github'
+            elif host in ('gitlab.com', 'www.gitlab.com'):
+                backend = 'gitlab'
             elif host:
                 backend = self.config('spindle.%s' % host)
         if backend == 'github':
             from gitspindle.github import GitHub
             return GitHub()
+        elif backend == 'gitlab':
+            from gitspindle.gitlab import GitLab
+            return GitLab()
         else:
             return GitSpindle()
 
-    def parse_repo(self, url):
+    def parse_repo(self, remote, url):
         return Repository(url)
 
     def get_remotes(self, opts):
         """Return all remotes as their respective objects in a dict {name:
            repo}"""
-        remotes = {'.dwim': None, '.mine': None, '.parent': None}
+        remotes = {'.dwim': None, '.mine': None}
         first = None
         if opts['<repo>']:
-            remotes['.dwim'] = remotes['opts'] = self.parse_repo(opts['<repo>'])
+            remotes['.dwim'] = remotes['opts'] = self.parse_repo(None, opts['<repo>'])
 
         if self.in_repo:
             confremotes = self.git('config', '--get-regexp', 'remote\..*\.url').stdout.strip().splitlines()
             for remote in confremotes:
                 remote, url = remote.split()
                 remote = remote.split('.')[1]
-                repo = self.backend_for_remote(remote, url).parse_repo(url)
+                repo = self.backend_for_remote(remote, url).parse_repo(remote, url)
                 if not repo:
                     print("Repository %s no longer exists" % url)
                     continue
@@ -134,7 +142,8 @@ Options:
                 if not first and (repo.spindle == self.spindle):
                     first = repo
                 remotes[remote] = repo
-                if repo.owner == self.me and repo.spindle == self.spindle:
+                if repo.owner.__class__.__module__ == self.me.__class__.__module__ and \
+                   repo.owner == self.me and repo.spindle == self.spindle:
                     remotes['.mine'] = repo
 
         if not remotes['.dwim']:
@@ -148,12 +157,17 @@ Options:
                 remotes['.dwim'] = first
             elif self.in_repo:
                 path = os.path.basename(self.shell.git('rev-parse', '--show-toplevel').stdout.strip())
-                remotes['.dwim'] = self.parse_repo(path)
+                remotes['.dwim'] = self.parse_repo(None, path)
 
-        if opts['--parent'] and remotes['.dwim'] and remotes['.dwim'].fork:
-            remotes['.dwim'] = remotes['.dwim'].parent
+        if opts['--parent'] and remotes['.dwim']:
+            parent = self.parent_repo(remotes['.dwim'])
+            if parent:
+                remotes['.dwim'] = parent
 
         return remotes
+
+    def parent_repo(self, repo):
+        return None
 
     def edit_msg(self, msg, filename):
         temp_file = os.path.join(self.gitm('rev-parse', '--git-dir').stdout.strip(), filename)

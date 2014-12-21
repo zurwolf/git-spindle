@@ -56,6 +56,8 @@ class GitHub(GitSpindle):
                             if error['resource'] == 'OauthAccess' and error['code'] == 'already_exists':
                                 err("An OAuth token for this host already exists, please delete it on https://github.com/settings/applications")
                 raise type.with_traceback(tb)
+            if auth is None:
+                err("Authentication failed")
             token = auth.token
             self.config('github.token', token)
             self.config('github.auth_id', auth.id)
@@ -69,11 +71,11 @@ class GitHub(GitSpindle):
             self.me = gh.user()
         except github3.GitHubError:
             # Token obsolete
-            self.git('config', '--file', self.config_file, '--unset', 'github.token')
+            self.gitm('config', '--file', self.config_file, '--unset', 'github.token')
             return self.github()
         return gh
 
-    def parse_repo(self, repo):
+    def parse_repo(self, remote, repo):
         if '@' in repo:
             repo = repo[repo.find('@')+1:]
         if ':' in repo:
@@ -99,6 +101,10 @@ class GitHub(GitSpindle):
             repo_ = self.gh.repository(user, repo)
 
         return repo_
+
+    def parent_repo(self, repo):
+        if repo.fork:
+            return repo.parent
 
     # Commands
 
@@ -194,7 +200,7 @@ class GitHub(GitSpindle):
     def browse(self, opts):
         """[--parent] [<repo>] [<section>]
            Open the GitHub page for a repository in a browser"""
-        sections = ['issues', 'pulls', 'wiki', 'branches', 'releases', 'contributors', 'graphs', 'releases', 'settings']
+        sections = ['issues', 'pulls', 'wiki', 'branches', 'releases', 'contributors', 'graphs', 'settings']
         if opts['<repo>'] in sections and not opts['<section>']:
             opts['<repo>'], opts['<section>'] = None, opts['<repo>']
         repo = self.get_remotes(opts)['.dwim']
@@ -288,7 +294,7 @@ class GitHub(GitSpindle):
 
     @command
     def cat(self, opts):
-        """<file>...  
+        """<file>...
            Display the contents of a file on github"""
         for file in opts['<file>']:
             repo, ref, file = ([None, None] + file.split(':',2))[-3:]
@@ -300,7 +306,7 @@ class GitHub(GitSpindle):
                 repo = self.get_remotes(opts)['.dwim']
             content = repo.contents(path=file, ref=ref)
             if content:
-                print(content.decoded)
+                os.write(sys.stdout.fileno(), content.decoded)
             else:
                 sys.stderr.write("No such file: %s\n" % file)
 
@@ -317,13 +323,11 @@ class GitHub(GitSpindle):
         elif opts['--http']:
             url = repo.clone_url
 
-        rc = self.git('clone', url, redirect=False).returncode
-        if rc:
-            sys.exit(rc)
+        self.gitm('clone', url, redirect=False).returncode
         if repo.fork:
             os.chdir(repo.name)
             self.set_origin(opts)
-            self.git('fetch', 'upstream', redirect=False)
+            self.gitm('fetch', 'upstream', redirect=False)
 
     @command
     @needs_repo
@@ -335,6 +339,7 @@ class GitHub(GitSpindle):
         if name in [x.name for x in self.gh.iter_repos()]:
             err("Repository already exists")
         self.gh.create_repo(name=name, description=opts['<description>'] or "", private=opts['--private'])
+        opts['remotes'] = self.get_remotes(opts)
         self.set_origin(opts)
 
     @command
@@ -448,8 +453,8 @@ class GitHub(GitSpindle):
     def issue(self, opts):
         """[<repo>] [--parent] [<issue>...]
            Show issue details or report an issue"""
-        if opts['<repo>'].isdigit():
-            # Let's assume it's a repo
+        if opts['<repo>'] and opts['<repo>'].isdigit():
+            # Let's assume it's an issue
             opts['<issue>'].insert(0, opts['<repo>'])
         repo = opts['remotes']['.dwim']
         for issue in opts['<issue>']:
@@ -658,9 +663,9 @@ class GitHub(GitSpindle):
                 owner = self.gh.user(repo.parent.owner.login)
             else:
                 owner = self.gh.user(repo.owner.login)
-            self.git('--git-dir', git_dir, 'config', 'goblet.owner', owner.name.encode('utf-8') or owner.login)
-            self.git('--git-dir', git_dir, 'config', 'goblet.cloneurlgit', repo.git_url)
-            self.git('--git-dir', git_dir, 'config', 'goblet.cloneurlhttp', repo.clone_url)
+            self.gitm('--git-dir', git_dir, 'config', 'goblet.owner', owner.name.encode('utf-8') or owner.login)
+            self.gitm('--git-dir', git_dir, 'config', 'goblet.cloneurlgit', repo.git_url)
+            self.gitm('--git-dir', git_dir, 'config', 'goblet.cloneurlhttp', repo.clone_url)
             goblet_dir = os.path.join(git_dir, 'goblet')
             if not os.path.exists(goblet_dir):
                 os.mkdir(goblet_dir, 0o777)
@@ -916,15 +921,15 @@ class GitHub(GitSpindle):
         repo = opts['remotes']['.dwim']
         # Is this mine? No? Do I have a clone?
         if repo.owner.login != self.me.login:
-            my_repo = gh.repository(self.me, repo.name)
+            my_repo = self.gh.repository(self.me, repo.name)
             if my_repo:
                 repo = my_repo
 
         if self.git('config', 'remote.origin.url').stdout.strip() != repo.ssh_url:
             print("Pointing origin to %s" % repo.ssh_url)
-            self.git('config', 'remote.origin.url', repo.ssh_url)
-            self.git('fetch', 'origin', redirect=False)
-        self.git('config', '--replace-all', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
+            self.gitm('config', 'remote.origin.url', repo.ssh_url)
+            self.gitm('fetch', 'origin', redirect=False)
+        self.gitm('config', '--replace-all', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
 
         if repo.fork:
             parent = repo.parent
@@ -935,8 +940,8 @@ class GitHub(GitSpindle):
                 url = parent.clone_url
             if self.git('config', 'remote.upstream.url').stdout.strip() != url:
                 print("Pointing upstream to %s" % url)
-                self.git('config', 'remote.upstream.url', url)
-            self.git('config', 'remote.upstream.fetch', '+refs/heads/*:refs/remotes/upstream/*')
+                self.gitm('config', 'remote.upstream.url', url)
+            self.gitm('config', 'remote.upstream.fetch', '+refs/heads/*:refs/remotes/upstream/*')
         else:
             # If issues are enabled, fetch pull requests
             try:
@@ -944,15 +949,15 @@ class GitHub(GitSpindle):
             except github3.GitHubError:
                 pass
             else:
-                self.git('config', '--add', 'remote.origin.fetch', '+refs/pull/*/head:refs/pull/*/head')
+                self.gitm('config', '--add', 'remote.origin.fetch', '+refs/pull/*/head:refs/pull/*/head')
 
         for branch in self.git('for-each-ref', 'refs/heads/**').stdout.strip().splitlines():
             branch = branch.split(None, 2)[-1][11:]
             if self.git('for-each-ref', 'refs/remotes/origin/%s' % branch).stdout.strip():
                 if self.git('config', 'branch.%s.remote' % branch).returncode != 0:
                     print("Marking %s as remote-tracking branch" % branch)
-                    self.git('config', 'branch.%s.remote' % branch, 'origin')
-                    self.git('config', 'branch.%s.merge' % branch, 'refs/heads/%s' % branch)
+                    self.gitm('config', 'branch.%s.remote' % branch, 'origin')
+                    self.gitm('config', 'branch.%s.merge' % branch, 'refs/heads/%s' % branch)
 
     @command
     def status(self, opts):
@@ -978,14 +983,14 @@ class GitHub(GitSpindle):
 
     @command
     def whoami(self, opts):
-        """\nDisplay github user info"""
+        """\nDisplay GitHub user info"""
         opts['<user>'] = [self.me.login]
         self.whois(opts)
 
     @command
     def whois(self, opts):
         """<user>...
-           Display github user info"""
+           Display GitHub user info"""
         for user_ in opts['<user>']:
             user = self.gh.user(user_)
             if not user:
