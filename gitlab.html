@@ -1,0 +1,315 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Git spindle for GitLab &mdash; git-spindle 2.0 documentation</title>
+    
+    <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noticia+Text|Open+Sans|Droid+Sans+Mono" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/cloud.js"></script>
+    <link rel="top" title="git-spindle 2.0 documentation" href="index.html" />
+    <link rel="prev" title="Git spindle for GitHub" href="github.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <div class="relbar-top">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="github.html" title="Git spindle for GitHub"
+             accesskey="P">previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">git-spindle 2.0 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="git-spindle-for-gitlab">
+<h1>Git spindle for GitLab<a class="headerlink" href="#git-spindle-for-gitlab" title="Permalink to this headline">¶</a></h1>
+<p><strong class="command">git lab</strong> lets you use your GitLab instance from the command line.
+Among other things, it lets you create and fork repositories, or file merge
+requests.</p>
+<div class="section" id="basic-usage">
+<h2>Basic usage<a class="headerlink" href="#basic-usage" title="Permalink to this headline">¶</a></h2>
+<p>The first time you use <strong class="command">git lab</strong>, it will ask you for your GitLab
+username and password. It then requests (and stores) your API authentication.</p>
+<p>The authentication token is stored in <tt class="file docutils literal"><span class="pre">~/.gitspindle</span></tt>. Never share this
+token with anyone as it gives full access to your GitLab account.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab whoami</tt></dt>
+<dd></dd></dl>
+
+<p>A simple command to try out is <strong class="command">git lab whoami</strong>, which tells you what
+GitLab thinks about who you are. For example:</p>
+<div class="highlight-python"><div class="highlight"><pre>dennis@lightning:~$ git lab whoami
+GitLab user: seveas
+GitLab password:
+<span style="font-weight: bold; text-decoration: underline">Dennis Kaarsemaker (id 57597)</span>
+Profile   https://gitlab.com/u/seveas
+Email     dennis@kaarsemaker.net
+Website   http://www.kaarsemaker.net
+Twitter   seveas
+LinkedIn  http://nl.linkedin.com/in/denniskaarsemaker
+Bio       Python developer, linux admin, solving scalability issues at booking.com
+RSA key   ...N0nFw3oW5l (Dennis Kaarsemaker (git))
+</pre></div>
+</div>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab whois</tt></dt>
+<dd></dd></dl>
+
+<p>If you want to see some information about other users, use <strong class="command">git lab whois</strong>:</p>
+<div class="highlight-python"><div class="highlight"><pre>dennis@lightning:~$ git lab whois sigmavirus24
+<span style="font-weight: bold; text-decoration: underline">Ian Cordasco (id 6325)</span>
+Profile   https://gitlab.com/u/sigmavirus24
+</pre></div>
+</div>
+<p>Sadly, GitLab does not give a lot of information about other users.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab repos [--no-forks]</tt></dt>
+<dd></dd></dl>
+
+<p>List all your repositories. Specify <em class="xref std std-option">--no-forks</em> to exclude forked
+repositories.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab add-public-keys [&lt;key&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>Add SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab public-keys &lt;user&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Display all public keys of a user, in a format that can be added to
+<tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>. Note that only admins can see this information for
+other users.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab log [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Displays a log of actions done to a repository, such as pushes and issue
+comments.</p>
+</div>
+<div class="section" id="interacting-with-repositories">
+<h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab create [--private|--internal] [-d &lt;description&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Create a (possibly private/internal) repository on GitLab for your current
+repository. An optional description can be given too. After running this
+command, a repository will be created on GitLab and your local repository will
+have GitLab as remote &#8220;origin&#8221;, so <strong class="command">git push origin master</strong> will work.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab set-origin [--ssh|--http]</tt></dt>
+<dd></dd></dl>
+
+<p>Fix the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be set
+to your GitLab repository. If that repository is a fork, remote &#8220;upstream&#8221; will
+be set to the repository you forked from.</p>
+<p>For origin, an SSH url is used. For upstream, set-origin defaults to adding an
+http url, but this can be overridden. For non-public repos SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab clone [--ssh|--http] &lt;repo&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Clone a GitLab repository by name (e.g. seveas/hacks) or URL. If it&#8217;s a fork,
+the &#8220;upstream&#8221; origin will be set up too. Defaults to cloning from an http url,
+but this can be overridden. For non-public repos SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab cat &lt;file&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Display the contents of a file on GitLab. File can start with repository names
+and refs. For example: <cite>master:bin/git-lab</cite>, <cite>git-spindle:master:bin/git-lab</cite>
+or <cite>seveas/git-spindle:master:bin/git-lab</cite>.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab fork [--ssh|--http] [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Fork another person&#8217;s git repository on GitLab and clones that repository
+locally. Repo can be specified as a (git) url or simply username/repo. Like
+with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes will be set up too.</p>
+<p>Calling fork in a previously cloned-but-not-forked repository will create a
+fork of that repository and set up your remotes.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab forks</tt></dt>
+<dd></dd></dl>
+
+<p>List all forks of this repository, highlighting the original repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab add-remote [--ssh|--http] [&lt;user&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
+Defaults to adding a git url, but this can be overridden. For non-public repos
+SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab browse [--parent] [&lt;repo&gt;] [&lt;section&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Browse a repository (or its parent) on GitLab. By default the repository&#8217;s
+homepage is opened, but you can specify a different section, such as issues,
+merge_requests, wiki, files, commits, branches, graphs or settings.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab mirror [--ssh|--http] [--goblet] [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Mirror a repository from GitLab. This is similar to clone, but clones into a
+bare repository and maps all remote refs to local refs. When run without
+argument, the current repository will be updated. You can also specify
+<em class="xref std std-option">*</em> as repository to mirror all your repositories.</p>
+<p>When you use the <em class="xref std std-option">--goblet</em> option, the resulting mirror will be
+configured for the goblet web interface, using description, owner and clone
+information from GitLab.</p>
+</div>
+<div class="section" id="issues-and-pull-requests">
+<h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab issues [&lt;repo&gt;] [--parent] [&lt;filter&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>List all open issues. You can specify <a class="reference external" href="https://github.com/gitlabhq/gitlabhq/blob/master/doc/api/issues.md">filters</a> to filter issues. When you
+specify <em class="xref std std-option">--parent</em>, list all open issues for the parent repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab issue [&lt;repo&gt;] [--parent] [&lt;issue&gt;...]</tt></dt>
+<dd></dd></dl>
+
+<p>Shows details about the mentioned issue numbers. As with <em class="xref std std-option">issues</em>, you
+can use the <em class="xref std std-option">--parent</em> option to use the parent repository. If you do
+not specify an issue number, you will be prompted for a message that will be
+used to create a new issue.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab merge-request [--issue &lt;issue&gt;] &lt;yours:theirs&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
+the upstream branch &#8220;theirs&#8221; (default: master). Like for a commit message, your
+editor will be opened to write a pull request message. The comments of said
+message contain the shortlog and diffstat of the commits that you&#8217;re asking to
+be merged. Note that if you use any characterset in your logs and filenames
+that is not ascii or utf-8, git lab will misbehave.</p>
+<p>If you specify an issue number, that issue will be turned into a pull request
+and you will not be asked to write a pull request message.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab apply-merge &lt;merge-request-number&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>GitLab makes it easy for you to merge merge requests, but if you want to keep
+your history linear, this one is for you. It applies a merge request using
+<strong class="command">git cherry-pick</strong> instead of merging.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><div class="sphinxlocaltoc">
+    <h3><a href="index.html">Page contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Git spindle for GitLab</a><ul>
+<li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
+<li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div class="sphinxprev">
+    <h4>Previous page</h4>
+    <p class="topless"><a href="github.html"
+                          title="Previous page">&larr; Git spindle for GitHub</a></p>
+  </div>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="github.html" title="Git spindle for GitHub"
+             >previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">git-spindle 2.0 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2012-2014, Dennis Kaarsemaker.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>
