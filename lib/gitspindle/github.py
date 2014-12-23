@@ -402,7 +402,7 @@ class GitHub(GitSpindle):
 
     @command
     def gist(self, opts):
-        """[--desc <description>] <file>...
+        """[--desc=<description>] <file>...
            Create a new gist from files or stdin"""
         files = {}
         description = opts['<description>'] or ''
@@ -861,16 +861,38 @@ class GitHub(GitSpindle):
 
     @command
     def render(self, opts):
-        """<file>
+        """[--save=<outfile>] <file>
            Render a markdown document"""
+        template = """<!DOCTYPE html>
+<html>
+  <head>
+    <link type="text/css" rel="stylesheet" media="all" href="http://necolas.github.io/normalize.css/latest/normalize.css"></link>
+    <link type="text/css" rel="stylesheet" media="all" href="http://seveas.github.io/git-spindle/_static/github.css"></link>
+    <link type="text/css" rel="stylesheet" media="all" href="https://cdnjs.cloudflare.com/ajax/libs/octicons/2.0.2/octicons.css"></link>
+  </head>
+  <body>
+    <div class="container">
+      <div id="readme" class="boxed-group">
+        <h3><span class="octicon octicon-book"></span> %s</h3>
+        <article class="markdown-body">
+          %s
+        </article>
+      </div>
+    </div>
+  </body>
+</html>"""
         with open(opts['<file>'][0]) as fd:
             data = fd.read()
-        html = github3.markdown(data)
-        with tempfile.NamedTemporaryFile(suffix='.html') as fd:
-            fd.write(html)
-            fd.flush()
-            webbrowser.open('file://' + fd.name)
-            time.sleep(1)
+        html = template % (os.path.basename(opts['<file>'][0]), github3.markdown(data))
+        if opts['--save']:
+            with open(opts['--save'], 'w') as fd:
+                fd.write(html)
+        else:
+            with tempfile.NamedTemporaryFile(suffix='.html') as fd:
+                fd.write(html)
+                fd.flush()
+                webbrowser.open('file://' + fd.name)
+                time.sleep(1)
 
     @command
     def repos(self, opts):
