@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for GitHub &mdash; git-spindle 2.2 documentation</title>
+    <title>Git spindle for GitHub &mdash; git-spindle 2.3 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.2',
+        VERSION:     '2.3',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 2.2 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 2.3 documentation" href="index.html" />
     <link rel="next" title="Git spindle for GitLab" href="gitlab.html" />
     <link rel="prev" title="Git subcommands for interacting with central services" href="index.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.2 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 2.3 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -141,7 +141,7 @@ to exclude forked repositories.</p>
 <p>Add SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub public-keys &lt;user&gt;</tt></dt>
+<tt class="descname">git hub public-keys [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Display all public keys of a user, in a format that can be added to
@@ -170,7 +170,7 @@ will be created on GitHub and your local repository will have GitHub as remote
 &#8220;origin&#8221;, so <strong class="command">git push origin master</strong> will work.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub set-origin [--ssh|--http]</tt></dt>
+<tt class="descname">git hub set-origin [--ssh|--http|--git]</tt></dt>
 <dd></dd></dl>
 
 <p>Fix the configuration of your repository&#8217;s remotes. Remote &#8220;origin&#8221; will be set
@@ -180,15 +180,17 @@ be set to the repository you forked from.</p>
 git url, but this can be overridden. For private repos SSH is used.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub clone [--ssh|--http] &lt;repo&gt;</tt></dt>
+<tt class="descname">git hub clone [--ssh|--http|--git] [--parent] [git-clone-options] &lt;repo&gt; [&lt;dir&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Clone a GitHub repository by name (e.g. seveas/hacks) or URL. If it&#8217;s a fork,
 the &#8220;upstream&#8221; origin will be set up too. Defaults to cloning from a git url,
 but this can be overridden. For private repos SSH is used.</p>
+<p>This command accepts all options git clone accepts and will forward those to
+<strong class="command">git clone</strong>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub cat &lt;file&gt;</tt></dt>
+<tt class="descname">git hub cat &lt;file&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>Display the contents of a file on GitHub. File can start with repository names
@@ -196,7 +198,7 @@ and refs. For example: <cite>master:bin/git-hub</cite>, <cite>git-spindle:master
 or <cite>seveas/git-spindle:master:bin/git-hub</cite>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub fork [--ssh|--http] [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub fork [--ssh|--http|--git] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Fork another person&#8217;s git repository on GitHub and clone that repository
@@ -206,13 +208,13 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 fork of that repository and set up your remotes.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub forks</tt></dt>
+<tt class="descname">git hub forks [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>List all forks of this repository, highlighting the original repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub add-remote [--ssh|--http] [&lt;user&gt;]</tt></dt>
+<tt class="descname">git hub add-remote [--ssh|--http|--git] [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
@@ -228,7 +230,7 @@ homepage is opened, but you can specify a different section, such as issues,
 pulls, wiki, branches, releases, contributors, graphs, releases or settings.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub mirror [--ssh|--http] [--goblet] [&lt;repo&gt;]</tt></dt>
+<tt class="descname">git hub mirror [--ssh|--http|--git] [--goblet] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Mirror a repository from GitHub. This is similar to clone, but clones into a
@@ -286,7 +288,7 @@ not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub pull-request [--issue &lt;issue&gt;] &lt;yours:theirs&gt;</tt></dt>
+<tt class="descname">git hub pull-request [--issue &lt;issue&gt;] [&lt;yours:theirs&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
@@ -344,14 +346,14 @@ F <span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </spa
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub render [--save &lt;outfile&gt;] &lt;file&gt;</tt></dt>
+<tt class="descname">git hub render [--save=&lt;outfile&gt;] &lt;file&gt;</tt></dt>
 <dd></dd></dl>
 
 <p>Lets GitHub render a markdown page and displays the result in your browser or
 save it to a file.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub ignore [&lt;lang&gt;...]</tt></dt>
+<tt class="descname">git hub ignore [&lt;language&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>GitHub provides <tt class="file docutils literal"><span class="pre">.gitignore</span></tt> templates for various languages and
@@ -359,7 +361,7 @@ environments. This command will let you quickly grab them and add them to your
 <tt class="file docutils literal"><span class="pre">.gitignore</span></tt>. For example: <strong class="command">git hub ignore Python C</strong></p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub network</tt></dt>
+<tt class="descname">git hub network [&lt;level&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Generates a graphviz graph of people following you, people you follow or people
@@ -432,14 +434,14 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.2 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 2.3 documentation</a> &raquo;</li>
  
       </ul>
     </div>
     </div>
 
     <div class="footer">
-        &copy; Copyright 2012-2014, Dennis Kaarsemaker.
+        &copy; Copyright 2012-2015, Dennis Kaarsemaker.
     </div>
     <!-- cloud_sptheme 1.4 -->
   </body>
