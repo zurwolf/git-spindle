@@ -106,6 +106,17 @@ class GitHub(GitSpindle):
         if repo.fork:
             return repo.parent
 
+    def clone_url(self, repo, opts):
+        if opts['--ssh'] or repo.private:
+            return repo.ssh_url
+        if opts['--http']:
+            return repo.clone_url
+        if opts['--git']:
+            return repo.git_url
+        if self.me.login == repo.owner.login:
+            return repo.ssh_url
+        return repo.git_url
+
     # Commands
 
     @command
@@ -168,15 +179,11 @@ class GitHub(GitSpindle):
     @command(**{'--parent': True})
     @needs_repo
     def add_remote(self, opts):
-        """[--ssh|--http] <user>...
+        """[--ssh|--http|--git] <user>...
            Add user's fork as a remote by that name"""
         for fork in opts['remotes']['.dwim'].iter_forks():
             if fork.owner.login in opts['<user>']:
-                url = fork.git_url
-                if opts['--ssh'] or fork.private:
-                    url = fork.ssh_url
-                elif opts['--http']:
-                    url = fork.clone_url
+                url = self.clone_url(fork, opts)
                 self.gitm('remote', 'add', fork.owner.login, url)
                 self.gitm('fetch', fork.owner.login, redirect=False)
 
@@ -312,20 +319,20 @@ class GitHub(GitSpindle):
 
     @command
     def clone(self, opts):
-        """[--ssh|--http] [--parent] <repo>
+        """[--ssh|--http|--git] [--parent] [git-clone-options] <repo> [<dir>]
            Clone a repository by name"""
         repo = opts['remotes']['.dwim']
-        url = repo.ssh_url
-        if self.me.login != repo.owner.login:
-            url = repo.git_url
-        if opts['--ssh'] or repo.private:
-            url = repo.ssh_url
-        elif opts['--http']:
-            url = repo.clone_url
+        url = self.clone_url(repo, opts)
+        args = opts['extra-opts']
+        args.append(url)
+        dir = opts['<dir>'] or repo.name
+        if '--bare' in args:
+            dir += '.git'
+        args.append(dir)
 
-        self.gitm('clone', url, redirect=False).returncode
+        self.gitm('clone', *args, redirect=False).returncode
         if repo.fork:
-            os.chdir(repo.name)
+            os.chdir(dir)
             self.set_origin(opts)
             self.gitm('fetch', 'upstream', redirect=False)
 
@@ -364,7 +371,7 @@ class GitHub(GitSpindle):
 
     @command
     def fork(self, opts):
-        """[--ssh|--http] [<repo>]
+        """[--ssh|--http|--git] [<repo>]
            Fork a repo and clone it"""
         do_clone = bool(opts['<repo>'])
         repo = opts['remotes']['.dwim']
@@ -402,7 +409,7 @@ class GitHub(GitSpindle):
 
     @command
     def gist(self, opts):
-        """[--desc=<description>] <file>...
+        """[-d <description>] <file>...
            Create a new gist from files or stdin"""
         files = {}
         description = opts['<description>'] or ''
@@ -620,7 +627,7 @@ class GitHub(GitSpindle):
 
     @command
     def mirror(self, opts):
-        """[--ssh|--http] [--goblet] [<repo>]
+        """[--ssh|--http|--git] [--goblet] [<repo>]
            Mirror a repository, or all repositories for a user"""
         if opts['<repo>'] and opts['<repo>'].endswith('/*'):
             user = opts['<repo>'].rsplit('/', 2)[-2]
@@ -637,11 +644,7 @@ class GitHub(GitSpindle):
         git_dir = repo.name + '.git'
         cur_dir = os.path.basename(os.path.abspath(os.getcwd()))
         if cur_dir != git_dir and not os.path.exists(git_dir):
-            url = repo.git_url
-            if opts['--ssh'] or repo.private:
-                url = repo.ssh_url
-            elif opts['--http']:
-                url = repo.clone_url
+            url = self.clone_url(repo, opts)
             self.gitm('clone', '--mirror', url, redirect=False)
         else:
             if git_dir == cur_dir:
@@ -659,17 +662,10 @@ class GitHub(GitSpindle):
             else:
                 fd.write((repo.description or "").encode('utf-8'))
         if opts['--goblet']:
-            if repo.fork:
-                owner = self.gh.user(repo.parent.owner.login)
-            else:
-                owner = self.gh.user(repo.owner.login)
-            self.gitm('--git-dir', git_dir, 'config', 'goblet.owner', owner.name.encode('utf-8') or owner.login)
-            self.gitm('--git-dir', git_dir, 'config', 'goblet.cloneurlgit', repo.git_url)
-            self.gitm('--git-dir', git_dir, 'config', 'goblet.cloneurlhttp', repo.clone_url)
-            goblet_dir = os.path.join(git_dir, 'goblet')
-            if not os.path.exists(goblet_dir):
-                os.mkdir(goblet_dir, 0o777)
-                os.chmod(goblet_dir, 0o777)
+            cwd = os.getcwd()
+            os.chdir(git_dir)
+            self.setup_goblet(opts)
+            os.chdir(cwd)
 
     @command
     def network(self, opts):
@@ -778,7 +774,7 @@ class GitHub(GitSpindle):
         # Do they exist on github?
         srcb = repo.branch(src)
         if not srcb:
-            if raw_input("Branch %s does not exist in your github repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
+            if raw_input("Branch %s does not exist in your GitHub repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
                 self.gitm('push', repo.remote, src, redirect=False)
             else:
                 err("Aborting")
@@ -786,7 +782,7 @@ class GitHub(GitSpindle):
             # Have we diverged? Then there are commits that are reachable from the github branch but not local
             diverged = self.gitm('rev-list', srcb.commit.sha, '^' + commit)
             if diverged.stderr or diverged.stdout:
-                if raw_input("Branch %s has diverged from github, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
+                if raw_input("Branch %s has diverged from GitHub, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
                     self.gitm('push', '--force', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
@@ -932,12 +928,33 @@ class GitHub(GitSpindle):
     def say(self, opts):
         """[<msg>]
            Let the octocat speak to you"""
-        print(github3.octocat(opts['<msg>'] or None))
+        msg = github3.octocat(opts['<msg>'] or None)
+        if isinstance(msg, bytes):
+            msg = msg.decode('utf-8')
+        print(msg)
+
+
+    @command(**{'--parent': True})
+    @needs_repo
+    def setup_goblet(self, opts):
+        """\nSet up goblet config based on GitHub config"""
+        repo = opts['remotes']['.dwim']
+        repo = self.parent_repo(repo) or repo
+        owner = self.gh.user(repo.owner.login)
+        self.gitm('config', 'goblet.owner-name', owner.name.encode('utf-8') or owner.login)
+        if owner.email:
+            self.gitm('config', 'goblet.owner-mail', owner.email.encode('utf-8'))
+        self.gitm('config', 'goblet.git-url', repo.git_url)
+        self.gitm('config', 'goblet.http-url', repo.clone_url)
+        goblet_dir = os.path.join(self.gitm('rev-parse', '--git-dir').stdout.strip(), 'goblet')
+        if not os.path.exists(goblet_dir):
+            os.mkdir(goblet_dir, 0o777)
+            os.chmod(goblet_dir, 0o777)
 
     @command
     @needs_repo
     def set_origin(self, opts):
-        """[--ssh|--http]
+        """[--ssh|--http|--git]
            Set the remote 'origin' to github.
            If this is a fork, set the remote 'upstream' to the parent"""
         repo = opts['remotes']['.dwim']
@@ -947,19 +964,16 @@ class GitHub(GitSpindle):
             if my_repo:
                 repo = my_repo
 
-        if self.git('config', 'remote.origin.url').stdout.strip() != repo.ssh_url:
-            print("Pointing origin to %s" % repo.ssh_url)
-            self.gitm('config', 'remote.origin.url', repo.ssh_url)
+        url = self.clone_url(repo, opts)
+        if self.git('config', 'remote.origin.url').stdout.strip() != repo.url:
+            print("Pointing origin to %s" % repo.url)
+            self.gitm('config', 'remote.origin.url', repo.url)
             self.gitm('fetch', 'origin', redirect=False)
         self.gitm('config', '--replace-all', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
 
         if repo.fork:
             parent = repo.parent
-            url = parent.git_url
-            if opts['--ssh'] or parent.private:
-                url = parent.ssh_url
-            elif opts['--http']:
-                url = parent.clone_url
+            url = self.clone_url(parent, opts)
             if self.git('config', 'remote.upstream.url').stdout.strip() != url:
                 print("Pointing upstream to %s" % url)
                 self.gitm('config', 'remote.upstream.url', url)

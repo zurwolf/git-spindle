@@ -51,6 +51,10 @@ class GitSpindle(Singleton):
             self.git_dir = None
         self.in_repo = bool(self.git_dir)
         self.config_file = os.path.join(os.path.expanduser('~'), '.gitspindle')
+        xdg_dir = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config'))
+        xdg_file = os.path.join(xdg_dir, 'git', 'spindle')
+        if os.path.exists(xdg_file):
+            self.config_file = xdg_file
         self.commands = {}
         self.usage = """%s - %s integration for git
 A full manual can be found on http://seveas.github.com/git-spindle/
@@ -107,6 +111,8 @@ Options:
                 backend = 'github'
             elif host in ('gitlab.com', 'www.gitlab.com'):
                 backend = 'gitlab'
+            elif host in ('bitbucket.org', 'www.bitbucket.org'):
+                backend = 'bitbucket'
             elif host:
                 backend = self.config('spindle.%s' % host)
         if backend == 'github':
@@ -115,6 +121,9 @@ Options:
         elif backend == 'gitlab':
             from gitspindle.gitlab import GitLab
             return GitLab()
+        elif backend == 'bitbucket':
+            from gitspindle.bitbucket import BitBucket
+            return BitBucket()
         else:
             return GitSpindle()
 
@@ -142,9 +151,13 @@ Options:
                 if not first and (repo.spindle == self.spindle):
                     first = repo
                 remotes[remote] = repo
-                if repo.owner.__class__.__module__ == self.me.__class__.__module__ and \
-                   repo.owner == self.me and repo.spindle == self.spindle:
-                    remotes['.mine'] = repo
+                try:
+                    if repo.owner == self.me and repo.spindle == self.spindle:
+                        remotes['.mine'] = repo
+                except AttributeError:
+                    # github3.py throws this when comparing github3.py objects
+                    # against regular ones
+                    pass
 
         if not remotes['.dwim']:
             if remotes['.mine']:
@@ -188,6 +201,11 @@ Options:
         for command, func in self.commands.items():
             if opts[command]:
                 opts['command'] = command
+                if isinstance(opts[command], list):
+                    opts['extra-opts'] = opts[command]
+                    opts[command] = True
+                else:
+                    opts['extra-opts'] = []
                 opts.update(func.opts)
                 if func.needs_repo:
                     opts['remotes'] = self.get_remotes(opts)
