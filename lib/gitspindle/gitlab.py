@@ -4,70 +4,62 @@ import gitspindle.glapi as glapi
 import base64
 import datetime
 import getpass
+import glob
 import os
 import sys
 import webbrowser
 
-hidden_command = lambda fnc: os.getenv('DEBUG') and command(fnc)
 
 class GitLab(GitSpindle):
     prog = 'git lab'
     what = 'GitLab'
     spindle = 'gitlab'
-
-    def __init__(self):
-        super(GitLab, self).__init__()
-        self.gl = self.gitlab()
+    hosts = ['gitlab.com', 'www.gitlab.com']
+    api = glapi
 
     # Support functions
-    def gitlab(self):
-        gl = None
-        user = self.config('gitlab.user')
+    def login(self):
+        self.gl = None
+        host = self.config('host') or 'https://gitlab.com'
+        if not host.startswith(('http://', 'https://')):
+            host = 'https://' + host
+
+        user = self.config('user')
         if not user:
             user = raw_input("GitLab user: ").strip()
-            self.config('gitlab.user', user)
+            self.config('user', user)
 
-        token = self.config('gitlab.token')
+        token = self.config('token')
         if not token:
             password = getpass.getpass("GitLab password: ")
-            gl = glapi.Gitlab('https://gitlab.com/', email=user, password=password)
-            gl.auth()
-            token = gl.user.private_token
-            self.config('gitlab.token', token)
+            self.gl = glapi.Gitlab(host, email=user, password=password)
+            self.gl.auth()
+            token = self.gl.user.private_token
+            self.config('token', token)
             print("Your GitLab authentication token is now cached in ~/.gitspindle - do not share this file")
 
         if not user or not token:
             err("No user or token specified")
 
-        if not gl:
-            gl = glapi.Gitlab('https://gitlab.com', email=user, private_token=token)
+        if not self.gl:
+            self.gl = glapi.Gitlab(host, email=user, private_token=token)
             try:
-                gl.auth()
+                self.gl.auth()
             except glapi.GitlabAuthenticationError:
                 # Token obsolete
-                self.gitm('config', '--file', self.config_file, '--unset', 'gitlab.token')
-                return self.gitlab()
-        self.me = gl.user
-        return gl
+                self.config('token', None)
+                self.login()
+        self.me = self.gl.user
+        self.my_login = self.me.username
 
-    def parse_repo(self, remote, repo):
+    def parse_url(self, url):
+        return ([self.my_login] + url.path.split('/'))[-2:]
+
+    def get_repo(self, remote, user, repo):
         if remote:
             id = self.git('config', 'remote.%s.gitlab-id' % remote).stdout.strip()
             if id and id.isdigit():
                 return self.gl.Project(id)
-
-        if '@' in repo:
-            repo = repo[repo.find('@')+1:]
-        if ':' in repo:
-            repo = repo[repo.find(':')+1:]
-
-        if '/' in repo:
-            user, repo = repo.rsplit('/',2)[-2:]
-        else:
-            user, repo = self.me.username, repo
-
-        if repo.endswith('.git'):
-            repo = repo[:-4]
 
         repo_ = self.find_repo(user=user, name=repo)
         if not repo_:
@@ -81,8 +73,8 @@ class GitLab(GitSpindle):
         if opts['--ssh'] or not repo.public:
             return repo.ssh_url_to_repo
         if opts['--http']:
-            return repo.http_url_ro_repo
-        if repo.owner.username == self.me.username:
+            return repo.http_url_to_repo
+        if repo.owner.username == self.my_login:
             return repo.ssh_url_to_repo
         return repo.http_url_to_repo
 
@@ -140,11 +132,10 @@ class GitLab(GitSpindle):
             glapi.CurrentUserKey(self.gl, {'title': title, 'key': key}).save()
 
     @command
-    @needs_repo
     def add_remote(self, opts):
         """[--ssh|--http] <user>...
            Add user's fork as a remote by that name"""
-        dwim = opts['remotes']['.dwim']
+        dwim = self.repository(opts)
         for user in opts['<user>']:
             repo = self.find_repo(user, dwim.name)
             if not repo:
@@ -155,11 +146,10 @@ class GitLab(GitSpindle):
             self.gitm('fetch', user, redirect=False)
 
     @command
-    @needs_repo
     def apply_merge(self, opts):
         """<merge-request-number>
            Applies a merge request as a series of cherry-picks"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         mn = int(opts['<merge-request-number>'])
         for req in repo.MergeRequest():
             if req.iid == mn:
@@ -203,7 +193,7 @@ class GitLab(GitSpindle):
         sections = ['issues', 'merge_requests', 'wiki', 'files', 'commits', 'branches', 'graphs', 'settings']
         if opts['<repo>'] in sections and not opts['<section>']:
             opts['<repo>'], opts['<section>'] = None, opts['<repo>']
-        repo = self.get_remotes(opts)['.dwim']
+        repo = self.repository(opts)
         section_map = {'wiki': 'wikis/home', 'files': 'tree/%s' % repo.default_branch,
                        'commits': 'commits/%s' % repo.default_branch, 'settings': 'edit',
                        'graphs': 'graphs/%s' % repo.default_branch}
@@ -215,15 +205,15 @@ class GitLab(GitSpindle):
     @command
     def cat(self, opts):
         """<file>...
-           Display the contents of a file on github"""
+           Display the contents of a file on GitLab"""
         for file in opts['<file>']:
             repo, ref, file = ([None, None] + file.split(':',2))[-3:]
             user = None
             if repo:
                 user, repo = ([None] + repo.split('/'))[-2:]
-                repo = self.find_repo(user or self.me.username, repo)
+                repo = self.find_repo(user or self.my_login, repo)
             else:
-                repo = self.get_remotes(opts)['.dwim']
+                repo = self.repository(opts)
 
             try:
                 file = repo.File(ref=ref or repo.default_branch, file_path=file)
@@ -235,12 +225,12 @@ class GitLab(GitSpindle):
     def clone(self, opts):
         """[--ssh|--http] [--parent] [git-clone-options] <repo> [<dir>]
            Clone a repository by name"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         url = self.clone_url(repo, opts)
 
         args = opts['extra-opts']
         args.append(url)
-        dir = opts['<dir>'] or repo.name
+        dir = opts['<dir>'] and opts['<dir>'][0] or repo.name
         if '--bare' in args:
             dir += '.git'
         args.append(dir)
@@ -253,7 +243,6 @@ class GitLab(GitSpindle):
             self.gitm('fetch', 'upstream', redirect=False)
 
     @command
-    @needs_repo
     def create(self, opts):
         """[--private|--internal] [-d <description>]
            Create a repository on gitlab to push to"""
@@ -267,7 +256,6 @@ class GitLab(GitSpindle):
         elif opts['--private']:
             visibility_level = 10
         glapi.Project(self.gl, {'name': name, 'description': opts['<description>'] or "", 'visibility_level': visibility_level}).save()
-        opts['remotes'] = self.get_remotes(opts)
         self.set_origin(opts)
 
     @command
@@ -275,14 +263,14 @@ class GitLab(GitSpindle):
         """[--ssh|--http] [<repo>]
            Fork a repo and clone it"""
         do_clone = bool(opts['<repo>'])
-        repo = opts['remotes']['.dwim']
-        if repo.owner.username == self.me.username:
+        repo = self.repository(opts)
+        if repo.owner.username == self.my_login:
             err("You cannot fork your own repos")
 
         if repo.name in [x.name for x in self.gl.Project()]:
             err("Repository already exists")
 
-        opts['remotes']['.dwim'] = repo.fork()
+        opts['<repo>'] = repo.fork().name
 
         if do_clone:
             self.clone(opts)
@@ -296,7 +284,7 @@ class GitLab(GitSpindle):
         if opts['<repo>'] and opts['<repo>'].isdigit():
             # Let's assume it's an issue
             opts['<issue>'].insert(0, opts['<repo>'])
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         # There's no way to fetch an issue by iid. Abuse search.
         issues = repo.Issue()
         for issue in opts['<issue>']:
@@ -323,7 +311,7 @@ class GitLab(GitSpindle):
     def issues(self, opts):
         """[<repo>] [--parent] [<filter>...]
            List issues in a repository"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         if not repo:
             repos = list(self.gl.Project())
         else:
@@ -342,8 +330,8 @@ class GitLab(GitSpindle):
     @command
     def log(self, opts):
         """[<repo>]
-           Display GitHub log for a repository"""
-        repo = opts['remotes']['.dwim']
+           Display GitLab log for a repository"""
+        repo = self.repository(opts)
         if not repo:
             return
         now = datetime.datetime.now()
@@ -379,11 +367,34 @@ class GitLab(GitSpindle):
                 pprint(event.json())
 
     @command
-    @needs_repo
+    def ls(self, opts):
+        """<dir>...
+           Display the contents of a directory on GitLab"""
+        for arg in opts['<dir>']:
+            repo, ref, file = ([None, None] + arg.split(':',2))[-3:]
+            user = None
+            if repo:
+                user, repo = ([None] + repo.split('/'))[-2:]
+                repo = self.find_repo(user or self.my_login, repo)
+            else:
+                repo = self.repository(opts)
+
+            try:
+                content = repo.tree(ref_name=ref or repo.default_branch, path=file)
+            except glapi.GitlabGetError:
+                err("No such file: %s" % arg)
+            if not content:
+                err("Not a directory: %s" % arg)
+            mt = max([len(file['type']) for file in content])
+            fmt = "%%(mode)s %%(type)-%ds %%(id).7s %%(name)s" % (mt, )
+            for file in content:
+                print(fmt % file)
+
+    @command
     def merge_request(self, opts):
         """[<branch1:branch2>]
            Opens a merge request to merge your branch1 to upstream branch2"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         parent = self.parent_repo(repo) or repo
         # Which branch?
         src = opts['<branch1:branch2>'] or ''
@@ -400,23 +411,23 @@ class GitLab(GitSpindle):
 
         # Try to get the local commit
         commit = self.gitm('show-ref', 'refs/heads/%s' % src).stdout.split()[0]
-        # Do they exist on github?
+        # Do they exist on GitLab?
         srcb = repo.Branch(src)
         if not srcb:
-            if raw_input("Branch %s does not exist in your gitlab repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
+            if raw_input("Branch %s does not exist in your GitLab repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
                 self.gitm('push', repo.remote, src, redirect=False)
             else:
                 err("Aborting")
         elif srcb and srcb.commit.id != commit:
-            # Have we diverged? Then there are commits that are reachable from the github branch but not local
+            # Have we diverged? Then there are commits that are reachable from the GitLab branch but not local
             diverged = self.gitm('rev-list', srcb.commit.id, '^' + commit)
             if diverged.stderr or diverged.stdout:
-                if raw_input("Branch %s has diverged from gitlab, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
+                if raw_input("Branch %s has diverged from GitLab, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
                     self.gitm('push', '--force', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
             else:
-                if raw_input("Branch %s not up to date on gitlab, but can be fast forwarded, shall I push? [Y/n] " % src) in ['y', 'Y', '']:
+                if raw_input("Branch %s not up to date on GitLab, but can be fast forwarded, shall I push? [Y/n] " % src) in ['y', 'Y', '']:
                     self.gitm('push', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
@@ -476,12 +487,11 @@ class GitLab(GitSpindle):
         """[--ssh|--http] [--goblet] [<repo>]
            Mirror a repository, or all your repositories"""
         if opts['<repo>'] and opts['<repo>'] == '*':
-            opts['<repo>'] = None
             for repo in self.gl.Project():
-                opts['remotes']['.dwim'] = repo
+                opts['<repo>'] = '%s/%s' % (repo.owner.username, name)
                 self.mirror(opts)
             return
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         git_dir = repo.name + '.git'
         cur_dir = os.path.basename(os.path.abspath(os.getcwd()))
         if cur_dir != git_dir and not os.path.exists(git_dir):
@@ -494,8 +504,7 @@ class GitLab(GitSpindle):
             if self.git('--git-dir', git_dir, 'config', 'core.bare').stdout.strip() != 'true' or \
                self.git('--git-dir', git_dir, 'config', 'remote.origin.mirror').stdout.strip() != 'true':
                    err("This is not a mirrored repository")
-            self.gitm('--git-dir', git_dir, 'fetch', '-q', 'origin', redirect=False)
-            self.gitm('--git-dir', git_dir, 'remote', 'prune', 'origin', redirect=False)
+            self.gitm('--git-dir', git_dir, 'fetch', '-q', '--prune', 'origin', redirect=False)
 
         with open(os.path.join(git_dir, 'description'), 'w') as fd:
             if PY3:
@@ -533,6 +542,8 @@ class GitLab(GitSpindle):
         """[--no-forks]
            List all your repos"""
         repos = self.gl.Project()
+        if not repos:
+            return
         maxlen = max([len(x.name) for x in repos])
         for repo in repos:
             color = [attr.normal]
@@ -545,7 +556,7 @@ class GitLab(GitSpindle):
                     continue
                 color.append(attr.faint)
             name = repo.name
-            if self.me.username != repo.owner.username:
+            if self.my_login != repo.owner.username:
                 name = '%s/%s' % (repo.owner.username, name)
             msg = wrap(name, *color)
             if not PY3:
@@ -553,15 +564,14 @@ class GitLab(GitSpindle):
             print(msg)
 
     @command
-    @needs_repo
     def set_origin(self, opts):
         """[--ssh|--http]
            Set the remote 'origin' to gitlab.
            If this is a fork, set the remote 'upstream' to the parent"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         # Is this mine? No? Do I have a clone?
-        if repo.owner.username != self.me.username:
-            my_repo = self.find_repo(self.me.username, repo.name)
+        if repo.owner.username != self.my_login:
+            my_repo = self.find_repo(self.my_login, repo.name)
             if my_repo:
                 repo = my_repo
 
@@ -635,24 +645,3 @@ class GitLab(GitSpindle):
             except glapi.GitlabListError:
                 # Permission denied, ignore
                 pass
-
-    # And debugging
-
-    @hidden_command
-    def run_shell(self, opts):
-        """\nDebug method to run a shell"""
-        import code
-        import readline
-        import rlcompleter
-        opts['remotes'] = self.get_remotes(opts)
-
-        data = {
-            'self':    self,
-            'gitlab':  glapi,
-            'opts':    opts,
-        }
-        readline.set_completer(rlcompleter.Completer(data).complete)
-        readline.parse_and_bind("tab: complete")
-        shl = code.InteractiveConsole(data)
-        shl.interact()
-        sys.exit(1)

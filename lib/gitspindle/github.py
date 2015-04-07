@@ -14,84 +14,73 @@ import tempfile
 import time
 import webbrowser
 
-hidden_command = lambda fnc: os.getenv('DEBUG') and command(fnc)
-
 class GitHub(GitSpindle):
     prog = 'git hub'
     what = 'GitHub'
     spindle = 'github'
-
-    def __init__(self):
-        super(GitHub, self).__init__()
-        self.gh = self.github()
+    hosts = ['github.com', 'www.github.com', 'gist.github.com']
+    api = github3
 
     # Support functions
-    def github(self):
-        gh = github3.GitHub()
+    def login(self):
+        host = self.config('host')
+        if host and host not in ('https://api.github.com', 'api.github.com'):
+            if not hosts.startswith(('http://', 'https://')):
+                host = 'https://' + host
+            self.gh = github3.GitHubEnterprise(url=host)
+        else:
+            self.gh = github3.GitHub()
 
-        user = self.config('github.user')
+        user = self.config('user')
         if not user:
             user = raw_input("GitHub user: ").strip()
-            self.config('github.user', user)
+            self.config('user', user)
 
-        token = self.config('github.token')
+        token = self.config('token')
         if not token:
             def prompt_for_2fa():
                 """Callback for github3.py's 2FA support."""
                 return raw_input("Two-Factor Authentication Code: ").strip()
             password = getpass.getpass("GitHub password: ")
-            # The extra gh object is needed for possible two-factor authentication to avoid the
-            # main gh object having a username/password and thus getting into a 2fa loop
-            gh2 = github3.GitHub()
-            gh2.login(user, password, two_factor_callback=prompt_for_2fa)
+            self.gh.login(user, password, two_factor_callback=prompt_for_2fa)
             try:
-                auth = gh2.authorize(user, password, ['user', 'repo', 'gist', 'admin:public_key', 'admin:repo_hook', 'admin:org'],
+                auth = self.gh.authorize(user, password, ['user', 'repo', 'gist', 'admin:public_key', 'admin:repo_hook', 'admin:org'],
                         "GitSpindle on %s" % socket.gethostname(), "http://seveas.github.com/git-spindle")
             except github3.GitHubError:
-                type, exc, tb = sys.exc_info()
+                type, exc = sys.exc_info()[:2]
                 if hasattr(exc, 'response'):
                     response = exc.response
                     if response.status_code == 422:
                         for error in response.json()['errors']:
                             if error['resource'] == 'OauthAccess' and error['code'] == 'already_exists':
                                 err("An OAuth token for this host already exists, please delete it on https://github.com/settings/applications")
-                raise type.with_traceback(tb)
+                raise
             if auth is None:
                 err("Authentication failed")
             token = auth.token
-            self.config('github.token', token)
-            self.config('github.auth_id', auth.id)
+            self.config('token', token)
+            self.config('auth_id', auth.id)
             print("A GitHub authentication token is now cached in ~/.gitspindle - do not share this file")
             print("To revoke access, visit https://github.com/settings/applications")
 
         if not user or not token:
             err("No user or token specified")
-        gh.login(username=user, token=token)
+        self.gh.login(username=user, token=token)
         try:
-            self.me = gh.user()
+            self.me = self.gh.user()
+            self.my_login = self.me.login
         except github3.GitHubError:
             # Token obsolete
-            self.gitm('config', '--file', self.config_file, '--unset', 'github.token')
-            return self.github()
-        return gh
+            self.config('token', None)
+            self.login()
 
-    def parse_repo(self, remote, repo):
-        if '@' in repo:
-            repo = repo[repo.find('@')+1:]
-        if ':' in repo:
-            repo = repo[repo.find(':')+1:]
-
-        if '/' in repo:
-            if 'gist.github.com' in repo:
-                user, repo = 'gist', repo.rsplit('/',1)[-1]
-            else:
-                user, repo = repo.rsplit('/',2)[-2:]
+    def parse_url(self, url):
+        if url.hostname == 'gist.github.com':
+            return ['gist', url.path.split('/')[-1]]
         else:
-            user, repo = self.me.login, repo
+            return ([self.my_login] + url.path.split('/'))[-2:]
 
-        if repo.endswith('.git'):
-            repo = repo[:-4]
-
+    def get_repo(self, remote, user, repo):
         if user == 'gist':
             # This is a gist, not a normal repo
             repo_ = self.gh.gist(repo)
@@ -113,18 +102,17 @@ class GitHub(GitSpindle):
             return repo.clone_url
         if opts['--git']:
             return repo.git_url
-        if self.me.login == repo.owner.login:
+        if self.my_login == repo.owner.login:
             return repo.ssh_url
         return repo.git_url
 
     # Commands
 
     @command
-    @needs_repo
     def add_hook(self, opts):
         """<name> [<setting>...]
            Add a repository hook"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         for hook in repo.iter_hooks():
             if hook.name == opts['<name>']:
                 raise ValueError("Hook %s already exists" % opts['<name>'])
@@ -136,11 +124,10 @@ class GitHub(GitSpindle):
         repo.create_hook(opts['<name>'], settings, events)
 
     @command
-    @needs_repo
     def apply_pr(self, opts):
         """<pr-number>
            Applies a pull request as a series of cherry-picks"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         pr = repo.pull_request(opts['<pr-number>'])
         if not pr:
             err("Pull request %s does not exist" % opts['<pr-number>'])
@@ -176,12 +163,12 @@ class GitHub(GitSpindle):
             print("Cherry-picking %d commit(s): %s..refs/pull/%d/head" % (pr.commits, pr.base.ref, pr.number))
             self.gitm('cherry-pick', '%s..refs/pull/%d/head' % (pr.base.ref, pr.number), redirect=False)
 
-    @command(**{'--parent': True})
-    @needs_repo
+    @command
+    @wants_parent
     def add_remote(self, opts):
         """[--ssh|--http|--git] <user>...
            Add user's fork as a remote by that name"""
-        for fork in opts['remotes']['.dwim'].iter_forks():
+        for fork in self.repository(opts).iter_forks():
             if fork.owner.login in opts['<user>']:
                 url = self.clone_url(fork, opts)
                 self.gitm('remote', 'add', fork.owner.login, url)
@@ -210,7 +197,7 @@ class GitHub(GitSpindle):
         sections = ['issues', 'pulls', 'wiki', 'branches', 'releases', 'contributors', 'graphs', 'settings']
         if opts['<repo>'] in sections and not opts['<section>']:
             opts['<repo>'], opts['<section>'] = None, opts['<repo>']
-        repo = self.get_remotes(opts)['.dwim']
+        repo = self.repository(opts)
         url = repo.html_url
         if opts['<section>']:
             url += '/' + opts['<section>']
@@ -220,7 +207,7 @@ class GitHub(GitSpindle):
     def calendar(self, opts):
         """[<user>]
            Show a timeline of a user's activity"""
-        user = (opts['<user>'] or [self.me.login])[0]
+        user = (opts['<user>'] or [self.my_login])[0]
         months = []
         rows = [[],[],[],[],[],[],[]]
         commits = []
@@ -302,30 +289,37 @@ class GitHub(GitSpindle):
     @command
     def cat(self, opts):
         """<file>...
-           Display the contents of a file on github"""
-        for file in opts['<file>']:
-            repo, ref, file = ([None, None] + file.split(':',2))[-3:]
+           Display the contents of a file on GitHub"""
+        for arg in opts['<file>']:
+            repo, ref, file = ([None, None] + arg.split(':',2))[-3:]
             user = None
             if repo:
                 user, repo = ([None] + repo.split('/'))[-2:]
-                repo = self.gh.repository(user or self.me.login, repo)
+                repo = self.gh.repository(user or self.my_login, repo)
             else:
-                repo = self.get_remotes(opts)['.dwim']
-            content = repo.contents(path=file, ref=ref)
-            if content:
-                os.write(sys.stdout.fileno(), content.decoded)
+                repo = self.repository(opts)
+            if '/' in file:
+                dir, file = file.rsplit('/', 1)
             else:
-                sys.stderr.write("No such file: %s\n" % file)
+                dir = ''
+            content = repo.contents(path=dir, ref=ref)
+            if not content or file not in content:
+                err("No such file: %s" % arg)
+            if content[file].type != 'file':
+                err("Not a regular file: %s" % arg)
+            resp = self.gh._session.get(content[file]._json_data['download_url'], stream=True)
+            for chunk in resp.iter_content(4096):
+                os.write(sys.stdout.fileno(), chunk)
 
     @command
     def clone(self, opts):
         """[--ssh|--http|--git] [--parent] [git-clone-options] <repo> [<dir>]
            Clone a repository by name"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         url = self.clone_url(repo, opts)
         args = opts['extra-opts']
         args.append(url)
-        dir = opts['<dir>'] or repo.name
+        dir = opts['<dir>'] and opts['<dir>'][0] or repo.name
         if '--bare' in args:
             dir += '.git'
         args.append(dir)
@@ -337,7 +331,6 @@ class GitHub(GitSpindle):
             self.gitm('fetch', 'upstream', redirect=False)
 
     @command
-    @needs_repo
     def create(self, opts):
         """[--private] [-d <description>]
            Create a repository on github to push to"""
@@ -346,15 +339,13 @@ class GitHub(GitSpindle):
         if name in [x.name for x in self.gh.iter_repos()]:
             err("Repository already exists")
         self.gh.create_repo(name=name, description=opts['<description>'] or "", private=opts['--private'])
-        opts['remotes'] = self.get_remotes(opts)
         self.set_origin(opts)
 
     @command
-    @needs_repo
     def edit_hook(self, opts):
         """<name> [<setting>...]
            Edit a hook"""
-        for hook in opts['remotes']['.dwim'].iter_hooks():
+        for hook in self.repository(opts).iter_hooks():
             if hook.name == opts['<name>']:
                 break
         else:
@@ -374,16 +365,16 @@ class GitHub(GitSpindle):
         """[--ssh|--http|--git] [<repo>]
            Fork a repo and clone it"""
         do_clone = bool(opts['<repo>'])
-        repo = opts['remotes']['.dwim']
-        if repo.owner.login == self.me.login:
+        repo = self.repository(opts)
+        if repo.owner.login == self.my_login:
             err("You cannot fork your own repos")
 
         if isinstance(repo, github3.gists.Gist):
             for fork in repo.iter_forks():
-                if fork.owner.login == self.me.login:
+                if fork.owner.login == self.my_login:
                     err("You already forked this gist as %s" % fork.html_url)
         else:
-            if repo.name in [x.name for x in self.gh.iter_repos() if x.owner.login == self.me.login]:
+            if repo.name in [x.name for x in self.gh.iter_repos() if x.owner.login == self.my_login]:
                 err("Repository already exists")
 
         my_clone = repo.create_fork()
@@ -391,18 +382,18 @@ class GitHub(GitSpindle):
             opts['<repo>'] = 'gist/%s' % my_clone.name
         else:
             opts['<repo>'] = my_clone.name
-        opts['remotes'] = self.get_remotes(opts)
 
         if do_clone:
             self.clone(opts)
         else:
             self.set_origin(opts)
 
-    @command(**{'--parent': True})
+    @command
+    @wants_parent
     def forks(self, opts):
         """[<repo>]
            List all forks of this repository"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         print("[%s] %s" % (wrap(repo.owner.login, attr.bright), repo.html_url))
         for fork in repo.iter_forks():
             print("[%s] %s" % (fork.owner.login, fork.html_url))
@@ -433,10 +424,9 @@ class GitHub(GitSpindle):
             print("%s - %s" % (gist.html_url, gist.description))
 
     @command
-    @needs_repo
     def hooks(self, opts):
         """\nShow hooks that have been enabled"""
-        for hook in opts['remotes']['.dwim'].iter_hooks():
+        for hook in self.repository(opts).iter_hooks():
             print(wrap("%s (%s)" % (hook.name, ', '.join(hook.events)), attr.bright))
             for key, val in sorted(hook.config.items()):
                 if val in (None, ''):
@@ -463,7 +453,7 @@ class GitHub(GitSpindle):
         if opts['<repo>'] and opts['<repo>'].isdigit():
             # Let's assume it's an issue
             opts['<issue>'].insert(0, opts['<repo>'])
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         for issue in opts['<issue>']:
             issue = repo.issue(issue)
             print(wrap(issue.title, attr.bright, attr.underline))
@@ -486,7 +476,7 @@ class GitHub(GitSpindle):
     def issues(self, opts):
         """[<repo>] [--parent] [<filter>...]
            List issues in a repository"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         if not repo:
             repos = list(self.gh.iter_repos(type='all'))
         else:
@@ -626,6 +616,30 @@ class GitHub(GitSpindle):
                 pprint(event.payload)
 
     @command
+    def ls(self, opts):
+        """<dir>...
+           Display the contents of a directory on GitHub"""
+        for arg in opts['<dir>']:
+            repo, ref, file = ([None, None] + arg.split(':',2))[-3:]
+            user = None
+            if repo:
+                user, repo = ([None] + repo.split('/'))[-2:]
+                repo = self.gh.repository(user or self.my_login, repo)
+            else:
+                repo = self.repository(opts)
+            content = repo.contents(path=file, ref=ref)
+            if not content:
+                err("No such directory: %s" % arg)
+            if not isinstance(content, dict):
+                err("Not a directory: %s" % arg)
+            content = sorted(content.values(), key=lambda file: file.name)
+            mt = max([len(file.type) for file in content])
+            ms = max([len(str(file.size)) for file in content])
+            fmt = "%%(type)-%ds %%(size)-%ds %%(sha).7s %%(path)s" % (mt, ms)
+            for file in content:
+                print(fmt % file._json_data)
+
+    @command
     def mirror(self, opts):
         """[--ssh|--http|--git] [--goblet] [<repo>]
            Mirror a repository, or all repositories for a user"""
@@ -633,14 +647,12 @@ class GitHub(GitSpindle):
             user = opts['<repo>'].rsplit('/', 2)[-2]
             for repo in self.gh.iter_user_repos(user):
                 opts['<repo>'] = '%s/%s' % (user, repo)
-                opts['remotes'] = self.get_remotes(opts)
                 self.mirror(opts)
             for repo in self.gh.iter_gists(user):
                 opts['<repo>'] = 'gist/%s' % repo.name
-                opts['remotes'] = self.get_remotes(opts)
                 self.mirror(opts)
             return
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         git_dir = repo.name + '.git'
         cur_dir = os.path.basename(os.path.abspath(os.getcwd()))
         if cur_dir != git_dir and not os.path.exists(git_dir):
@@ -653,8 +665,7 @@ class GitHub(GitSpindle):
             if self.git('--git-dir', git_dir, 'config', 'core.bare').stdout.strip() != 'true' or \
                self.git('--git-dir', git_dir, 'config', 'remote.origin.mirror').stdout.strip() != 'true':
                    err("This is not a mirrored repository")
-            self.gitm('--git-dir', git_dir, 'fetch', '-q', 'origin', redirect=False)
-            self.gitm('--git-dir', git_dir, 'remote', 'prune', 'origin', redirect=False)
+            self.gitm('--git-dir', git_dir, 'fetch', '-q', '--prune', 'origin', redirect=False)
 
         with open(os.path.join(git_dir, 'description'), 'w') as fd:
             if PY3:
@@ -687,7 +698,7 @@ class GitHub(GitSpindle):
                 level = int(opts['<level>'])
             except ValueError:
                 err("Integer argument required")
-        people = {self.me.login: P(self.me)}
+        people = {self.my_login: P(self.me)}
         for i in range(level):
             for login, person in list(people.items()):
                 if person.done:
@@ -738,8 +749,8 @@ class GitHub(GitSpindle):
     def public_keys(self, opts):
         """[<user>]
            Lists all keys for a user"""
-        user = opts['<user>'] and opts['<user>'][0] or self.me.login
-        if self.me.login == user:
+        user = opts['<user>'] and opts['<user>'][0] or self.my_login
+        if self.my_login == user:
             keys = self.gh.iter_keys()
         else:
             keys = self.gh.user(user).iter_keys()
@@ -747,11 +758,10 @@ class GitHub(GitSpindle):
             print("%s %s" % (key.key, key.title or ''))
 
     @command
-    @needs_repo
     def pull_request(self, opts):
         """[--issue=<issue>] [<branch1:branch2>]
            Opens a pull request to merge your branch1 to upstream branch2"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         if repo.fork:
             parent = repo.parent
         else:
@@ -847,11 +857,10 @@ class GitHub(GitSpindle):
         print("Pull request %d created %s" % (pull.number, pull.html_url))
 
     @command
-    @needs_repo
     def remove_hook(self, opts):
         """<name>
            Remove a hook"""
-        for hook in opts['remotes']['.dwim'].iter_hooks():
+        for hook in self.repository(opts).iter_hooks():
             if hook.name == opts['<name>']:
                 hook.delete()
 
@@ -899,6 +908,8 @@ class GitHub(GitSpindle):
         else:
             repos = list(self.gh.iter_repos(type='all'))
             opts['<user>'] = [self.gh.user().login]
+        if not repos:
+            return
         maxlen = max([len(x.name) for x in repos])
         # XXX github3.py PR 193
         # maxstar = len(str(max([x.stargazers for x in repos])))
@@ -934,11 +945,11 @@ class GitHub(GitSpindle):
         print(msg)
 
 
-    @command(**{'--parent': True})
-    @needs_repo
+    @command
+    @wants_parent
     def setup_goblet(self, opts):
         """\nSet up goblet config based on GitHub config"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         repo = self.parent_repo(repo) or repo
         owner = self.gh.user(repo.owner.login)
         self.gitm('config', 'goblet.owner-name', owner.name.encode('utf-8') or owner.login)
@@ -952,22 +963,21 @@ class GitHub(GitSpindle):
             os.chmod(goblet_dir, 0o777)
 
     @command
-    @needs_repo
     def set_origin(self, opts):
         """[--ssh|--http|--git]
            Set the remote 'origin' to github.
            If this is a fork, set the remote 'upstream' to the parent"""
-        repo = opts['remotes']['.dwim']
+        repo = self.repository(opts)
         # Is this mine? No? Do I have a clone?
-        if repo.owner.login != self.me.login:
+        if repo.owner.login != self.my_login:
             my_repo = self.gh.repository(self.me, repo.name)
             if my_repo:
                 repo = my_repo
 
         url = self.clone_url(repo, opts)
-        if self.git('config', 'remote.origin.url').stdout.strip() != repo.url:
-            print("Pointing origin to %s" % repo.url)
-            self.gitm('config', 'remote.origin.url', repo.url)
+        if self.git('config', 'remote.origin.url').stdout.strip() != url:
+            print("Pointing origin to %s" % url)
+            self.gitm('config', 'remote.origin.url', url)
             self.gitm('fetch', 'origin', redirect=False)
         self.gitm('config', '--replace-all', 'remote.origin.fetch', '+refs/heads/*:refs/remotes/origin/*')
 
@@ -1020,7 +1030,7 @@ class GitHub(GitSpindle):
     @command
     def whoami(self, opts):
         """\nDisplay GitHub user info"""
-        opts['<user>'] = [self.me.login]
+        opts['<user>'] = [self.my_login]
         self.whois(opts)
 
     @command
@@ -1044,7 +1054,7 @@ class GitHub(GitSpindle):
                 print('Company   %s' % user.company)
             print('Repos     %d public, %d private' % (user.public_repos, user.total_private_repos))
             print('Gists     %d public, %d private' % (user.public_gists, user.total_private_gists))
-            if user.login == self.me.login:
+            if user.login == self.my_login:
                 keys = self.gh.iter_keys()
             else:
                 keys = user.iter_keys()
@@ -1063,23 +1073,3 @@ class GitHub(GitSpindle):
                 for member in self.gh.organization(user.login).iter_members():
                     print(" - %s" % member.login)
 
-    # And debugging
-
-    @hidden_command
-    def run_shell(self, opts):
-        """\nDebug method to run a shell"""
-        import code
-        import readline
-        import rlcompleter
-        opts['remotes'] = self.get_remotes(opts)
-
-        data = {
-            'self':    self,
-            'github3': github3,
-            'opts':    opts,
-        }
-        readline.set_completer(rlcompleter.Completer(data).complete)
-        readline.parse_and_bind("tab: complete")
-        shl = code.InteractiveConsole(data)
-        shl.interact()
-        sys.exit(1)

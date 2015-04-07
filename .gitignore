@@ -1,4 +1,10 @@
-_build
-dist
+*.py?
+.gitspindle
+.ssh
 MANIFEST
-*.pyc
+__pycache__
+_build
+build
+dist
+test-results
+trash directory.*

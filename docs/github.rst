@@ -83,7 +83,14 @@ instead of yours.
 If you are only interested in events of a specific type, you can filter for it,
 e.g. :option:`--type=push`.
 
+.. describe:: git hub config [--unset] <key> [<value>]
+
+Set, get or unset a configuration variable in :file:`~/.gitspindle`. Similar to
+:command:`git config`, but only single-level keys are allowed, and the section
+is hardcoded to be the current account.
+
 .. _`profile page`: https://github.com/settings/applications
+
 
 Interacting with repositories
 -----------------------------
@@ -118,6 +125,12 @@ This command accepts all options git clone accepts and will forward those to
 Display the contents of a file on GitHub. File can start with repository names
 and refs. For example: `master:bin/git-hub`, `git-spindle:master:bin/git-hub`
 or `seveas/git-spindle:master:bin/git-hub`.
+
+.. describe:: git hub ls <dir>...
+
+Display the contents of a directory on GitHub. Directory can start with
+repository names and refs. For example: `master:bin/git-hub`,
+`git-spindle:master:bin/git-hub` or `seveas/git-spindle:master:bin/git-hub`.
 
 .. describe:: git hub fork [--ssh|--http|--git] [<repo>]
 
