@@ -1,0 +1,164 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Using multiple accounts &mdash; git-spindle 2.4 documentation</title>
+    
+    <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="//fonts.googleapis.com/css?family=Noticia+Text|Open+Sans|Droid+Sans+Mono" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '2.4',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/cloud.js"></script>
+    <link rel="top" title="git-spindle 2.4 documentation" href="index.html" />
+    <link rel="prev" title="Git spindle for BitBucket" href="bitbucket.html" /> 
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+  <body>
+    <div class="relbar-top">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="bitbucket.html" title="Git spindle for BitBucket"
+             accesskey="P">previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">git-spindle 2.4 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="using-multiple-accounts">
+<h1>Using multiple accounts<a class="headerlink" href="#using-multiple-accounts" title="Permalink to this headline">¶</a></h1>
+<p><strong class="command">git hub</strong>, <strong class="command">git bb</strong> and <strong class="command">git lab</strong> all support using
+more than one account. <strong class="command">git hub</strong> and <strong class="command">git lab</strong> also support
+using local installs of GitHub Enterprise and GitLab.</p>
+<div class="section" id="adding-an-extra-account">
+<h2>Adding an extra account<a class="headerlink" href="#adding-an-extra-account" title="Permalink to this headline">¶</a></h2>
+<p>To add an extra account, use the <strong class="command">git hub add-account</strong> command
+(replace hub with lab or bb as appropriate in this and following commands). It
+requires an alias as argument; this alias does not need to be the same as the
+account name, which it will ask for later. This alias can be used in later
+commands to specify which account to use.</p>
+<p>Examples:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git hub add-account personal
+GitHub user: seveas
+GitHub password:
+A GitHub authentication token is now cached in ~/.gitspindle - do not share this file
+
+$ git lab add-account work --host gitlab.example.com
+GitLab user: seveas
+GitLab password:
+Your GitLab authentication token is now cached in ~/.gitspindle - do not share this file
+</pre></div>
+</div>
+<p>As you can see you can use the same username on multiple services.</p>
+</div>
+<div class="section" id="using-non-default-accounts">
+<h2>Using non-default accounts<a class="headerlink" href="#using-non-default-accounts" title="Permalink to this headline">¶</a></h2>
+<p>To use these extra accounts, you can give <strong class="command">git hub</strong> an
+<em class="xref std std-option">--account</em> argument:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git hub --account test-account clone seveas/whelk
+</pre></div>
+</div>
+<p>Note that the value of this parameter should be an alias as used with the
+<strong class="command">add-account</strong> command, not a loginname. If the account is on a
+separate hostname, such as a GitHub Enterprise or local GitLab install, you do
+not need to specify an account, except when cloning: git-spindle will recognize
+it based on the configured remote url&#8217;s:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git lab --account work clone dev/website
+$ cd website
+$ git lab issues
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper"><div class="sphinxlocaltoc">
+    <h3><a href="index.html">Page contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Using multiple accounts</a><ul>
+<li><a class="reference internal" href="#adding-an-extra-account">Adding an extra account</a></li>
+<li><a class="reference internal" href="#using-non-default-accounts">Using non-default accounts</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div class="sphinxprev">
+    <h4>Previous page</h4>
+    <p class="topless"><a href="bitbucket.html"
+                          title="Previous page">&larr; Git spindle for BitBucket</a></p>
+  </div>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="relbar-bottom">
+        
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="bitbucket.html" title="Git spindle for BitBucket"
+             >previous</a> &nbsp; &nbsp;</li>
+    <li><a href="index.html">git-spindle 2.4 documentation</a> &raquo;</li>
+ 
+      </ul>
+    </div>
+    </div>
+
+    <div class="footer">
+        &copy; Copyright 2012-2015, Dennis Kaarsemaker.
+    </div>
+    <!-- cloud_sptheme 1.4 -->
+  </body>
+</html>

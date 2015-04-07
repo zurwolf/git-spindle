@@ -59,6 +59,12 @@ other users.
 Displays a log of actions done to a repository, such as pushes and issue
 comments.
 
+.. describe:: git lab config [--unset] <key> [<value>]
+
+Set, get or unset a configuration variable in :file:`~/.gitspindle`. Similar to
+:command:`git config`, but only single-level keys are allowed, and the section
+is hardcoded to be the current account.
+
 Interacting with repositories
 -----------------------------
 
@@ -92,6 +98,12 @@ This command accepts all options git clone accepts and will forward those to
 Display the contents of a file on GitLab. File can start with repository names
 and refs. For example: `master:bin/git-lab`, `git-spindle:master:bin/git-lab`
 or `seveas/git-spindle:master:bin/git-lab`.
+
+.. describe:: git lab ls <dir>...
+
+Display the contents of a directory on GitLab. Directory can start with
+repository names and refs. For example: `master:bin/git-lab`,
+`git-spindle:master:bin/git-lab` or `seveas/git-spindle:master:bin/git-lab`.
 
 .. describe:: git lab fork [--ssh|--http] [<repo>]
 

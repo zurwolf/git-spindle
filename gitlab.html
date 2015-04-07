@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for GitLab &mdash; git-spindle 2.3 documentation</title>
+    <title>Git spindle for GitLab &mdash; git-spindle 2.4 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.3',
+        VERSION:     '2.4',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 2.3 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 2.4 documentation" href="index.html" />
     <link rel="next" title="Git spindle for BitBucket" href="bitbucket.html" />
     <link rel="prev" title="Git spindle for GitHub" href="github.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.3 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 2.4 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -130,6 +130,14 @@ other users.</p>
 
 <p>Displays a log of actions done to a repository, such as pushes and issue
 comments.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab config [--unset] &lt;key&gt; [&lt;value&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Set, get or unset a configuration variable in <tt class="file docutils literal"><span class="pre">~/.gitspindle</span></tt>. Similar to
+<strong class="command">git config</strong>, but only single-level keys are allowed, and the section
+is hardcoded to be the current account.</p>
 </div>
 <div class="section" id="interacting-with-repositories">
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
@@ -170,6 +178,14 @@ but this can be overridden. For non-public repos SSH is used.</p>
 <p>Display the contents of a file on GitLab. File can start with repository names
 and refs. For example: <cite>master:bin/git-lab</cite>, <cite>git-spindle:master:bin/git-lab</cite>
 or <cite>seveas/git-spindle:master:bin/git-lab</cite>.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab ls &lt;dir&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Display the contents of a directory on GitLab. Directory can start with
+repository names and refs. For example: <cite>master:bin/git-lab</cite>,
+<cite>git-spindle:master:bin/git-lab</cite> or <cite>seveas/git-spindle:master:bin/git-lab</cite>.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git lab fork [--ssh|--http] [&lt;repo&gt;]</tt></dt>
@@ -309,7 +325,7 @@ your history linear, this one is for you. It applies a merge request using
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.3 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 2.4 documentation</a> &raquo;</li>
  
       </ul>
     </div>
