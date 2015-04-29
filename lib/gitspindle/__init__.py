@@ -33,11 +33,19 @@ del pprint
 
 def command(fnc):
     fnc.is_command = True
+    if not hasattr(fnc, 'no_login'):
+        fnc.no_login = False
+    if not hasattr(fnc, 'wants_parent'):
+        fnc.wants_parent = False
     return fnc
 hidden_command = lambda fnc: os.getenv('DEBUG') and command(fnc)
 
 def wants_parent(fnc):
     fnc.wants_parent = True
+    return fnc
+
+def no_login(fnc):
+    fnc.no_login = True
     return fnc
 
 class GitSpindle(object):
@@ -122,6 +130,15 @@ Options:
             return [None, None, None]
         return [url.hostname] + self.parse_url(url)
 
+    def remotes(self):
+        confremotes = self.git('config', '--get-regexp', 'remote\..*\.url').stdout.strip().splitlines()
+        ret = {}
+        for remote in confremotes:
+            remote, url = remote.split()
+            remote = remote.split('.')[1]
+            ret[remote] = url
+        return ret
+
     def repository(self, opts, hostname_only=False):
         # How do we select a repo?
         # - Did we request one with --repo?
@@ -131,7 +148,7 @@ Options:
         #   - Is it mine? Yes -> return it('s parent), No -> remember it
         #   - Return the first rememered one(s parent)
         #  FIXME: errors should mention account if available
-        remote = None
+        remote = host = None
         if opts['<repo>']:
             host, user, repo = self._parse_url(opts['<repo>'])
             if not repo:
@@ -201,13 +218,15 @@ Options:
         hosts = self.git('config', '--file', self.config_file, '--get-regexp', '%s.*host' % self.spindle).stdout.strip()
 
         for (account, host) in [x.split() for x in hosts.splitlines()]:
-            account = account.split('.')[1]
+            account = account.split('.')
             if host.startswith(('http://', 'https://')):
                 host = urlparse.urlparse(host).hostname
-            if self.account == account:
+            if len(account) == 2: # User has set a host for the default account
+                self.hosts = [host]
+            if self.account == account[1]:
                 self.hosts = [host]
                 break
-            self.accounts[host] = account
+            self.accounts[host] = account[1]
             self.hosts.append(host)
 
         if not self.account and (self.in_repo or opts['<repo>']):
@@ -220,7 +239,7 @@ Options:
 
         for command, func in self.commands.items():
             if opts[command]:
-                if command != 'add-account':
+                if not func.no_login:
                     self.login()
                 opts['command'] = command
                 if isinstance(opts[command], list):
@@ -228,7 +247,7 @@ Options:
                     opts[command] = True
                 else:
                     opts['extra-opts'] = []
-                opts['--maybe-parent'] = getattr(func, 'wants_parent', False)
+                opts['--maybe-parent'] = func.wants_parent
                 try:
                     func(opts)
                 except KeyboardInterrupt:
@@ -236,6 +255,7 @@ Options:
                 break
 
     @command
+    @no_login
     def add_account(self, opts):
         """[--host=<host>] <alias>
            Add an account to the configuration"""
@@ -245,6 +265,7 @@ Options:
         self.login()
 
     @command
+    @no_login
     def config_(self, opts):
         """[--unset] <key> [<value>]
            Configure git-spindle, similar to git-config"""
