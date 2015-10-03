@@ -30,7 +30,10 @@ class BitBucket(GitSpindle):
             except:
                 err("Authentication failed")
             self.config('password', password)
-            print("Your BitBucket authentication password is now cached in %s - do not share this file" % self.config_file)
+            location = '%s - do not share this file' % self.config_file
+            if self.use_credential_helper:
+                location = 'git\'s credential helper'
+            print("Your BitBucket authentication password is now stored in %s" % location)
 
         self.bb = bbapi.Bitbucket(user, password)
         self.me = self.bb.user(user)
@@ -58,7 +61,35 @@ class BitBucket(GitSpindle):
             return repo.links['clone']['ssh']
         return repo.links['clone']['https']
 
+    def api_root(self):
+        return 'https://bitbucket.org/api/'
+
     # Commands
+    @command
+    def add_deploy_key(self, opts):
+        """<key>...
+           Add a deploy key"""
+        repo = self.repository(opts)
+        for arg in opts['<key>']:
+            with open(arg) as fd:
+                algo, key, label = fd.read().strip().split(None, 2)
+            key = "%s %s" % (algo, key)
+            print("Adding deploy key %s" % arg)
+            repo.add_deploy_key(key, label)
+
+    @command
+    def add_privilege(self, opts):
+        """[--admin|--read|--write] <user>...
+           Add privileges for a user to this repo"""
+        repo = self.repository(opts)
+        priv = 'read'
+        if opts['--write']:
+            priv = 'write'
+        elif opts['--admin']:
+            priv = 'admin'
+        for user in opts['<user>']:
+            repo.add_privilege(user, priv)
+
     @command
     def add_public_keys(self, opts):
         """[<key>...]
@@ -78,13 +109,14 @@ class BitBucket(GitSpindle):
     @command
     @wants_parent
     def add_remote(self, opts):
-        """[--ssh|--http] <user>...
-           Add user's fork as a remote by that name"""
+        """[--ssh|--http] <user> [<name>]
+           Add user's fork as a named remote. The name defaults to the user's loginname"""
         for fork in self.repository(opts).forks():
             if fork.owner['username'] in opts['<user>']:
+                name = opts['<name>'] or fork.owner['username']
                 url = self.clone_url(fork, opts)
-                self.gitm('remote', 'add', fork.owner['username'], url)
-                self.gitm('fetch', fork.owner['username'], redirect=False)
+                self.gitm('remote', 'add', name, url)
+                self.gitm('fetch', name, redirect=False)
 
     @command
     @wants_parent
@@ -110,7 +142,7 @@ class BitBucket(GitSpindle):
             print(wrap("Pull request has already been declined: %s" % pr.reason, fgcolor.red))
             warned = True
         if warned:
-            if raw_input("Continue? [y/N] ") not in ['y', 'Y']:
+            if not self.question("Continue?"):
                 sys.exit(1)
 
         # Fetch PR if needed
@@ -152,8 +184,9 @@ class BitBucket(GitSpindle):
                 repo = self.bb.repository(user or self.my_login, repo)
             else:
                 repo = self.repository(opts)
+                file = self.rel2root(file)
             try:
-                content = repo.src(path=file, revision=ref)
+                content = repo.src(path=file, revision=ref or 'master') # BitBucket has no API to retrieve the default branch
             except bbapi.BitBucketError:
                 err("No such file: %s" % arg)
             if not hasattr(content, '_data'):
@@ -161,7 +194,7 @@ class BitBucket(GitSpindle):
             if getattr(content, 'encoding', None) == 'base64':
                 os.write(sys.stdout.fileno(), binascii.a2b_base64(content._data))
             else:
-                print(content._data)
+                os.write(sys.stdout.fileno(), content._data.encode('utf-8'))
 
     @command
     def clone(self, opts):
@@ -185,7 +218,7 @@ class BitBucket(GitSpindle):
 
     @command
     def create(self, opts):
-        """[--private] [-d <description>]
+        """[--private] [--description=<description>]
            Create a repository on bitbucket to push to"""
         root = self.gitm('rev-parse', '--show-toplevel').stdout.strip()
         name = os.path.basename(root)
@@ -195,12 +228,36 @@ class BitBucket(GitSpindle):
         except bbapi.BitBucketError:
             pass
 
-        self.me.create_repository(slug=name, description=opts['-d'], is_private=opts['--private'])
+        self.me.create_repository(slug=name, description=opts['--description'], is_private=opts['--private'],
+                                  has_issues=True, has_wiki=True)
         if 'origin' in self.remotes():
             print("Remote 'origin' already exists, adding the BitBucket repository as 'bitbucket'")
             self.set_origin(opts, 'bitbucket')
         else:
             self.set_origin(opts)
+
+    @command
+    def deploy_keys(self, opts):
+        """[<repo>]
+           Lists all keys for a repo"""
+        repo = self.repository(opts)
+        for key in repo.deploy_keys():
+            print("%s %s (id: %s)" % (key['key'], key.get('label', ''), key['pk']))
+
+    @command
+    def fetch(self, opts):
+        """[--ssh|--http] <user> [<refspec>]
+           Fetch refs from a user's fork"""
+        for fork in self.repository(opts).forks():
+            if fork.owner['username'] in opts['<user>']:
+                url = self.clone_url(fork, opts)
+                refspec = opts['<refspec>'] or 'refs/heads/*'
+                if ':' not in refspec:
+                    if not refspec.startswith('refs/'):
+                        refspec += ':' + 'refs/remotes/%s/' % fork.owner['username'] + refspec
+                    else:
+                        refspec += ':' + refspec.replace('refs/heads/', 'refs/remotes/%s/' % fork.owner['username'])
+                self.gitm('fetch', url, refspec, redirect=False)
 
     @command
     def fork(self, opts):
@@ -235,6 +292,20 @@ class BitBucket(GitSpindle):
             print("[%s] %s" % (fork.owner['username'], fork.links['html']['href']))
 
     @command
+    def invite(self, opts):
+        """[--read|--write|--admin] <email>...
+           Invite users to collaborate on this repository"""
+        repo = self.repository(opts)
+        priv = 'read'
+        if opts['--write']:
+            priv = 'write'
+        elif opts['--admin']:
+            priv = 'admin'
+        for email in opts['<email>']:
+            invitation = repo.invite(email, priv)
+            print("Invitation with %s privileges sent to %s" % (invitation['permission'], invitation['email']))
+
+    @command
     def issue(self, opts):
         """[<repo>] [--parent] [<issue>...]
            Show issue details or report an issue"""
@@ -257,18 +328,21 @@ class BitBucket(GitSpindle):
             if not body:
                 err("Empty issue message")
 
-            issue = repo.create_issue(title=title, body=body)
-            print("Issue %d created %s" % (issue.local_id, issue.html_url))
+            try:
+                issue = repo.create_issue(title=title, body=body)
+                print("Issue %d created %s" % (issue.local_id, issue.html_url))
+            except:
+                filename = self.backup_message(title, body, 'issue-message-')
+                err("Failed to create an issue, the issue text has been saved in %s" % filename)
 
     @command
     def issues(self, opts):
         """[<repo>] [--parent] [<filter>...]
            List issues in a repository"""
-        repo = self.repository(opts)
-        if not repo:
+        if not opts['<repo>'] and not self.in_repo:
             repos = self.me.repositories()
         else:
-            repos = [repo]
+            repos = [self.repository(opts)]
         for repo in repos:
             if repo.fork and opts['--parent']:
                 repo = self.parent_repo(repo) or repo
@@ -276,16 +350,27 @@ class BitBucket(GitSpindle):
             try:
                 issues = repo.issues(**filters)
             except bbapi.BitBucketError:
-                continue
-            print(wrap("Issues for %s" % repo.full_name, attr.bright))
-            for issue in issues:
-                print("[%d] %s https://bitbucket.org/%s/issue/%d/" % (issue.local_id, issue.title, repo.full_name, issue.local_id))
+                issues = None
+            try:
+                pullrequests = repo.pull_requests()
+            except bbapi.BitBucketError:
+                pullrequests = None
+
+            if issues:
+                print(wrap("Issues for %s" % repo.full_name, attr.bright))
+                for issue in issues:
+                    print("[%d] %s https://bitbucket.org/%s/issue/%d/" % (issue.local_id, issue.title, repo.full_name, issue.local_id))
+            if pullrequests:
+                print(wrap("Pull requests for %s" % repo.full_name, attr.bright))
+                for pr in pullrequests:
+                    print("[%d] %s https://bitbucket.org/%s/pull-requests/%d/" % (pr.id, pr.title, repo.full_name, pr.id))
+
 
     @command
     def ls(self, opts):
-        """<dir>...
+        """[<dir>...]
            Display the contents of a directory on BitBucket"""
-        for arg in opts['<dir>']:
+        for arg in opts['<dir>'] or ['']:
             repo, ref, file = ([None, None] + arg.split(':',2))[-3:]
             user = None
             if repo:
@@ -293,8 +378,9 @@ class BitBucket(GitSpindle):
                 repo = self.bb.repository(user or self.my_login, repo)
             else:
                 repo = self.repository(opts)
+                file = self.rel2root(file)
             try:
-                content = repo.src(path=file, revision=ref)
+                content = repo.src(path=file or '/', revision=ref or 'master') # BitBucket has no API to retrieve the default branch
             except bbapi.BitBucketError:
                 err("No such file: %s" % arg)
             if hasattr(content, '_data'):
@@ -353,6 +439,21 @@ class BitBucket(GitSpindle):
                 os.chmod(goblet_dir, 0o777)
 
     @command
+    def privileges(self, opts):
+        """[<repo>]
+           List repo privileges"""
+        repo = self.repository(opts)
+        order = {'admin': 0, 'write': 1, 'read': 2}
+        privs = repo.privileges()
+        if not privs:
+            return
+        privs.sort(key=lambda priv: (order[priv['privilege']], priv['user']['username']))
+        maxlen = max([len(priv['user']['username']) for priv in privs])
+        fmt = "%%s %%-%ds (%%s)" % maxlen
+        for priv in privs:
+            print(fmt % (wrap("%-5s" % priv['privilege'], attr.faint), priv['user']['username'], priv['user']['display_name']))
+
+    @command
     def public_keys(self, opts):
         """[<user>]
            Lists all keys for a user"""
@@ -362,15 +463,15 @@ class BitBucket(GitSpindle):
 
     @command
     def pull_request(self, opts):
-        """[<branch1:branch2>]
-           Opens a pull request to merge your branch1 to upstream branch2"""
+        """[--yes] [<yours:theirs>]
+           Opens a pull request to merge your branch to an upstream branch"""
         repo = self.repository(opts)
         if repo.is_fork:
             parent = self.parent_repo(repo)
         else:
             parent = repo
         # Which branch?
-        src = opts['<branch1:branch2>'] or ''
+        src = opts['<yours:theirs>'] or ''
         dst = None
         if ':' in src:
             src, dst = src.split(':', 1)
@@ -387,7 +488,7 @@ class BitBucket(GitSpindle):
         # Do they exist on bitbucket?
         srcb = repo.branches().get(src, None)
         if not srcb:
-            if raw_input("Branch %s does not exist in your BitBucket repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
+            if self.question("Branch %s does not exist in your BitBucket repo, shall I push?" % src):
                 self.gitm('push', repo.remote, src, redirect=False)
                 srcb = repo.branches().get(src, None)
             else:
@@ -396,12 +497,12 @@ class BitBucket(GitSpindle):
             # Have we diverged? Then there are commits that are reachable from the github branch but not local
             diverged = self.gitm('rev-list', srcb.raw_node, '^' + commit)
             if diverged.stderr or diverged.stdout:
-                if raw_input("Branch %s has diverged from github, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
+                if self.question("Branch %s has diverged from github, shall I push and overwrite?" % src, default=False):
                     self.gitm('push', '--force', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
             else:
-                if raw_input("Branch %s not up to date on github, but can be fast forwarded, shall I push? [Y/n] " % src) in ['y', 'Y', '']:
+                if self.question("Branch %s not up to date on github, but can be fast forwarded, shall I push?" % src):
                     self.gitm('push', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
@@ -453,8 +554,28 @@ class BitBucket(GitSpindle):
         if not body:
             err("No pull request message specified")
 
-        pull = parent.create_pull_request(src=srcb, dst=dstb, title=title, body=body)
-        print("Pull request %d created %s" % (pull.id, pull.links['html']['href']))
+        try:
+            pull = parent.create_pull_request(src=srcb, dst=dstb, title=title, body=body)
+            print("Pull request %d created %s" % (pull.id, pull.links['html']['href']))
+        except:
+            filename = self.backup_message(title, body, 'pull-request-message-')
+            err("Failed to create a pull request, the pull request text has been saved in %s" % filename)
+
+    @command
+    def remove_deploy_key(self, opts):
+        """<key>...
+           Remove deploy key by id"""
+        repo = self.repository(opts)
+        for key in opts['<key>']:
+            repo.remove_deploy_key(key)
+
+    @command
+    def remove_privilege(self, opts):
+        """<user>...
+           Remove a user's privileges"""
+        repo = self.repository(opts)
+        for user in opts['<user>']:
+            repo.remove_privilege(user)
 
     @command
     def repos(self, opts):
@@ -492,7 +613,7 @@ class BitBucket(GitSpindle):
         if self.git('config', 'remote.%s.url' % remote).stdout.strip() != url:
             print("Pointing %s to %s" % (remote, url))
             self.gitm('config', 'remote.%s.url' % remote, url)
-        self.gitm('config', '--replace-all', 'remote.%s.fetch' % remote, '+refs/heads/*:refs/remotes/origin/*')
+        self.gitm('config', '--replace-all', 'remote.%s.fetch' % remote, '+refs/heads/*:refs/remotes/%s/*' % remote)
 
         if repo.is_fork:
             parent = self.bb.repository(repo.fork_of['owner'], repo.fork_of['slug'])
@@ -517,6 +638,31 @@ class BitBucket(GitSpindle):
                     print("Marking %s as remote-tracking branch" % branch)
                     self.gitm('config', 'branch.%s.remote' % branch, 'origin')
                     self.gitm('config', 'branch.%s.merge' % branch, 'refs/heads/%s' % branch)
+
+    @command
+    def snippet(self, opts):
+        """[--description=<description>] <file>...
+           Create a new snippet from files or stdin"""
+        files = {}
+        description = opts['--description'] or ''
+        for f in opts['<file>']:
+            if f == '-':
+                files['stdout'] = sys.stdin.read()
+            else:
+                if not os.path.exists(f):
+                    err("No such file: %s" % f)
+                with open(f) as fd:
+                    files[os.path.basename(f)] = fd.read()
+        snippet = self.me.create_snippet(description=description, files=files)
+        print("Snippet created at %s" % snippet.links['html']['href'])
+
+    @command
+    def snippets(self, opts):
+        """[<user>]
+           Show all snippets for a user"""
+        snippets = self.bb.user(opts['<user>'] or self.my_login).snippets()
+        for snippet in snippets:
+            print("%s - %s" % (snippet.title, snippet.links['html']['href']))
 
     @command
     def whoami(self, opts):

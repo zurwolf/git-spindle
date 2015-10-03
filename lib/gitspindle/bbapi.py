@@ -83,6 +83,10 @@ class BBobject(object):
         kwargs.update({'auth': (self.bb.username, self.bb.passwd)})
         return check(requests.post(*args, **kwargs))
 
+    def put(self, *args, **kwargs):
+        kwargs.update({'auth': (self.bb.username, self.bb.passwd)})
+        return check(requests.put(*args, **kwargs))
+
     def delete_(self, *args, **kwargs):
         kwargs.update({'auth': (self.bb.username, self.bb.passwd)})
         return check(requests.delete(*args, **kwargs))
@@ -100,8 +104,9 @@ class User(BBobject):
     def repository(self, slug):
         return Repository(self.bb, owner=self.username, slug=slug)
 
-    def create_repository(self, slug, description, is_private):
-        data = {'owner': self.username, 'slug': slug, 'description': description, 'is_private': is_private, 'scm': 'git'}
+    def create_repository(self, slug, description, is_private, has_issues, has_wiki):
+        data = {'owner': self.username, 'slug': slug, 'description': description, 'is_private': is_private,
+                'scm': 'git', 'has_issues': has_issues, 'has_wiki': has_wiki}
         repo = self.post(uritemplate.expand(Repository.uri[1], slug=slug, owner=self.username), data=json.dumps(data), headers={'content-type': 'application/json'})
         return Repository(self.bb, mode=None, **repo)
 
@@ -117,6 +122,22 @@ class User(BBobject):
         url = uritemplate.expand('https://bitbucket.org/api/2.0/repositories/{owner}', owner=self.username)
         data = self.get(url)['values']
         return [Repository(self.bb, mode=None, **repo) for repo in data]
+
+    def snippets(self):
+        url = uritemplate.expand('https://bitbucket.org/api/2.0/snippets/{owner}', owner=self.username)
+        data = self.get(url)['values']
+        return [Snippet(self.bb, mode=None, **snippet) for snippet in data]
+
+    def create_snippet(self, description, files):
+        url = uritemplate.expand('https://bitbucket.org/api/2.0/snippets/{owner}', owner=self.username)
+        data = {'scm': 'git', 'is_private': 'false', 'title': description}
+        files = [('file', (filename, content)) for (filename, content) in files.items()]
+        snippet = self.post(url, data=data, files=files)
+        return Snippet(self.bb, mode=None, **snippet)
+
+    def emails(self):
+        url = uritemplate.expand('https://bitbucket.org/api/1.0/users/{username}/emails', username=self.username)
+        return self.get(url)
 
 def ssh_fix(url):
     if not url.startswith('ssh://'):
@@ -152,6 +173,11 @@ class Repository(BBobject):
     def branches(self):
         branches = self.get(self.url[0] + '/branches')
         return dict([(key, Branch(self.bb, mode=None, repository=self, **val)) for (key, val) in branches.items()])
+
+    def pull_requests(self, **params):
+        url = 'https://bitbucket.org/api/2.0/repositories/%s/pullrequests?state=OPEN' % self.full_name
+        data = self.get(url)['values']
+        return [PullRequest(self.bb, mode=None, **pr) for pr in data]
 
     def pull_request(self, number):
         owner, slug = self.full_name.split('/')
@@ -191,6 +217,38 @@ class Repository(BBobject):
             self.url = [uritemplate.expand(x, **data) for x in self.uri]
         return self.delete_(self.url[1])
 
+    def add_privilege(self, user, priv):
+        data = {'owner': self.owner['username'], 'slug': self.name, 'user': user}
+        url = uritemplate.expand('https://bitbucket.org/api/1.0/privileges/{owner}/{slug}/{user}', data)
+        return self.put(url, data=priv)
+
+    def remove_privilege(self, user):
+        data = {'owner': self.owner['username'], 'slug': self.name, 'user': user}
+        url = uritemplate.expand('https://bitbucket.org/api/1.0/privileges/{owner}/{slug}/{user}', data)
+        return self.delete_(url)
+
+    def privileges(self):
+        data = {'owner': self.owner['username'], 'slug': self.name}
+        url = uritemplate.expand('https://bitbucket.org/api/1.0/privileges/{owner}/{slug}', data)
+        return self.get(url)
+
+    def add_deploy_key(self, key, label):
+        url = self.url[0] + '/deploy-keys'
+        return self.post(url, {'key': key, 'label': label})
+
+    def remove_deploy_key(self, key):
+        url = self.url[0] + '/deploy-keys/' + key
+        return self.delete_(url)
+
+    def deploy_keys(self):
+        url = self.url[0] + '/deploy-keys'
+        return self.get(url)
+
+    def invite(self, email, priv):
+        data = {'owner': self.owner['username'], 'slug': self.name, 'email': email}
+        url = uritemplate.expand('https://bitbucket.org/api/1.0/invitations/{owner}/{slug}/{+email}', data)
+        return self.post(url, {'permission': priv})
+
 class Branch(BBobject):
     uri = None
 
@@ -212,3 +270,20 @@ class Issue(BBobject):
 
 class Source(BBobject):
     uri = 'https://bitbucket.org/api/1.0/repositories/{owner}/{slug}/src/{revision}{/path*}'
+
+class Snippet(BBobject):
+    uri = 'https://bitbucket.org/api/2.0/snippets/{owner}/{id}'
+
+    def __init__(self, *args, **kwargs):
+        super(Snippet, self).__init__(*args, **kwargs)
+        if not hasattr(self, 'links'):
+            return
+        links, self.links['clone'] = self.links['clone'], {}
+        for link in links:
+            self.links['clone'][link['name']] = ssh_fix(link['href'])
+
+    def delete(self):
+        if not hasattr(self, 'url'):
+            data = {'owner': self.owner['username'], 'id': self.id}
+            self.url = [uritemplate.expand(x, **data) for x in self.uri]
+        return self.delete_(self.url[0])

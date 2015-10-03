@@ -4,57 +4,54 @@ This is the testsuite for git-spindle. It is not easy to use, as it requires at
 least ten accounts on various different services. If you still want to have a
 go at it, these instructions should help.
 
-
 Accounts
 --------
 You will need 3 accounts on each of gitlab.com, bitbucket.org and github.com.
 The word 'test' must appear in their name. You will also need a local GitLab
-instance, where a user 'Seveas' must exist and have a public repo 'whelk'.
+instance, where a user 'seveas' must exist and have a public repo named
+'whelk'.
 
-All these accounts must be added to a .gitspindle file in this directory. It's
-probably easiest to add them to your local .gitspindle file with the
-add-account command and then copy them over.
+All these accounts must have names that start with git-spindle-test- and must
+be added to a .gitspindle file in this directory under aliases with mandatory
+names. It's not a normal .gitspindle file, please see the example in this
+directory. Note that the testsuite will add extra sections to this configfile
+storing access tokens.
 
-Note that for GitHub accounts you must manually grant the delete_repo scope
-after creating the account. This can be done on
-https://github.com/settings/applications
-
-The git-spindle account names are hardcoded as below:
-
-[gitlab "gitlab-test-1"]
-[gitlab "gitlab-test-2"]
-[gitlab "gitlab-test-3"]
-[gitlab "gitlab-test-local"]
-
-[github "github-test-1"]
-[github "github-test-2"]
-[github "github-test-3"]
-
-[bitbucket "bitbucket-test-1"]
-[bitbucket "bitbucket-test-2"]
-[bitbucket "bitbucket-test-3"]
-
-After creating the .gitspindle file, copy over the [github "github-test-1"]
-section to a [github] section. Same for gitlab and bitbucket.
-
+The third GitHub test account must have two-factor authentication set up to be
+able to test two-factor authentication.
 
 Running the testsuite
 ---------------------
-While setting up tests is difficult, running them is as easy as 'make test' and
-grabbing a cup of coffee. Each individual test can be run by simply running it
-from the test directory. But beware that quite a few tests depend on each
-other, so make sure any failures you get when doing this are not the result of
-this fact.
+While setting up tests is a bit of work, running them is as easy as 'make
+test' and grabbing a cup of coffee. Each individual test can be run by simply
+running it from the test directory. But beware that quite a few tests depend
+on each other (e.g. the fork tests depend on the create tests), so make sure
+any failures you get when doing this are not the result of this fact.
 
+The testsuite pays attention to the following environment variables:
+NO_GITHUB       -- don't test github
+NO_BITBUCKET    -- don't test bitbucket
+NO_GITLAB       -- don't test gitlab
+NO_GITLAB_LOCAL -- don't test a local gitlab instance
+AUTHORTESTS     -- run tests only the author needs to run
 
 Adding to the testsuite
 -----------------------
-The testsuite is divided in sections for different functionality. When you add
-a test, add it to the right section.
+The testsuite uses sharness, which is a modified version of git's own
+testsuite. This makes it easy to write your tests as short shell scripts. A
+few things are important in git-spindle's tests
 
-0xx: basics, cleanups and users
-1xx: repo creation (create, clone, fork, forks, parent, set_origin, add_remote)
-2xx: repo inspection (browse, cat, ls)
-3xx: issues (issue, issues, pull requests, apply)
-4xx: misc goodies (mirroring, log, hooks/services)
-9xx: github goodies (gists, calendar, ignore, say, status, network, render)
+- Make sure you specify requirements. Each git-hub test must use the hub
+  requirement. Similar for git-bb and git-lab
+- Use the helper functions defined in setup.sh and sharness.sh. They will make
+  your life easier.
+- Tests are executed in numerical (technically alphabetical) order. Make sure
+  you number your test correctly: use unique numbers in different sections:
+  - 0xx: Configuration and authentication.
+  - 1xx: Querying and manipulating users
+  - 2xx: Repo creation and fetching
+  - 3xx: Repository content
+  - 4xx: Issues and pull requests
+  - 5xx: Extra services provided for a repository
+  - 6xx: Services not linked to a single repository
+  - 9xx: Author tests

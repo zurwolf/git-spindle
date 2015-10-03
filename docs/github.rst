@@ -32,7 +32,7 @@ GitHub thinks about who you are. For example::
   Gists     4 public, 0 private
   RSA key   ...N0nFw3oW5l (Dennis)
 
-.. describe:: git hub whois
+.. describe:: git hub whois <user>...
 
 If you want to see this information about other users, use :command:`git hub whois`::
 
@@ -60,7 +60,7 @@ Shows the last few GitHub status messages::
   [2m2014-04-03 09:55[0m [33mminor[0m We're currently investigating issues with operations against a small percentage of repositories.
   [2m2014-04-03 10:14[0m [32mgood [0m Everything operating normally.
 
-.. describe:: git hub repos [--no-forks] [<user>...]
+.. describe:: git hub repos [--no-forks] [<user>]
 
 List all repositories owned by a user, by default you. Specify :option:`--no-forks`
 to exclude forked repositories.
@@ -83,11 +83,30 @@ instead of yours.
 If you are only interested in events of a specific type, you can filter for it,
 e.g. :option:`--type=push`.
 
+.. describe:: git hub add-account [--host=<host>] <alias>
+
+:command:`git hub` supports multiple accounts. To add a new account, use the
+:command:`add-account` command. If the account lives on a GitHub Enterprise
+instance, you can specify its hostname. To change the hostname of any account,
+including the default one, you can use the :command:`config` command as
+follows: :command:`git hub config host https://github.example.com`.
+
 .. describe:: git hub config [--unset] <key> [<value>]
 
 Set, get or unset a configuration variable in :file:`~/.gitspindle`. Similar to
 :command:`git config`, but only single-level keys are allowed, and the section
 is hardcoded to be the current account.
+
+.. describe:: git hub create-token [--store]
+
+Create a personal access token that can be used for git operations (clone,
+fetch, push) over http. Especially useful if you use two-factor authentication,
+as these tokens can be used instead of your password and don't require the
+second factor.
+
+The token is shown in the output of the command. If you specify
+:option:`--store`, the token will also be stored using the git credential
+helpers.
 
 .. _`profile page`: https://github.com/settings/applications
 
@@ -95,7 +114,7 @@ is hardcoded to be the current account.
 Interacting with repositories
 -----------------------------
 
-.. describe:: git hub create [--private] [-d <description>]
+.. describe:: git hub create [--private] [--description=<description>]
 
 Create a (possibly private) repository on GitHub for your current repository. An
 optional description can be given too. After running this command, a repository
@@ -126,7 +145,7 @@ Display the contents of a file on GitHub. File can start with repository names
 and refs. For example: `master:bin/git-hub`, `git-spindle:master:bin/git-hub`
 or `seveas/git-spindle:master:bin/git-hub`.
 
-.. describe:: git hub ls <dir>...
+.. describe:: git hub ls [<dir>...]
 
 Display the contents of a directory on GitHub. Directory can start with
 repository names and refs. For example: `master:bin/git-hub`,
@@ -145,11 +164,17 @@ fork of that repository and set up your remotes.
 
 List all forks of this repository, highlighting the original repository.
 
-.. describe:: git hub add-remote [--ssh|--http|--git] [<user>]
+.. describe:: git hub add-remote [--ssh|--http|--git] <user> [<name>]
 
-Add a users fork as a remote using the user's login as name for the remote.
-Defaults to adding a git url, but this can be overridden. For private repos
-SSH is used.
+Add a users fork as a remote using the specified name or the user's login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.
+
+.. describe:: git hub fetch [--ssh|--http|--git] <user> [<refspec>]
+
+If you don't want to add a user's fork as a remote, but to want to fetch some
+refs from it, you can use the :command:`fetch` command. You can tell it which
+refs to fetch, and if you don't give a refspec, it will fetch all branches.
 
 .. describe:: git hub browse [--parent] [<repo>] [<section>]
 
@@ -167,6 +192,34 @@ argument, the current repository will be updated. You can also specify
 When you use the :option:`--goblet` option, the resulting mirror will be
 configured for the goblet web interface, using description, owner and clone
 information from GitHub.
+
+Administering repositories
+--------------------------
+.. describe:: git hub collaborators [<repo>]
+
+List all people with push access to this repository.
+
+.. describe:: git hub add-collaborator <user>...
+
+Grant people push access to this repository.
+
+.. describe:: git hub remove-collaborator <user>...
+
+Revoke access to this repository.
+
+.. describe:: git hub deploy-keys [<repo>]
+
+List all deploy keys for this repository
+
+.. describe:: git hub add-deploy-key [--read-only] <key>...
+
+Add a deploy key to a repository, which can be used to fetch and push data via
+ssh. Read-only keys acan only fetch.
+
+.. describe:: git hub remove-deploy-key <key>...
+
+Remove a deploy key by id. Use the :command:`git hub deploy-keys` command to
+see the id's of your deploy keys.
 
 .. describe:: git hub hooks
 
@@ -204,7 +257,7 @@ can use the :option:`--parent` option to use the parent repository. If you do
 not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.
 
-.. describe:: git hub pull-request [--issue <issue>] [<yours:theirs>]
+.. describe:: git hub pull-request [--issue=<issue>] [--yes] [<yours:theirs>]
 
 Files a pull request to merge branch "yours" (default: the current branch) into
 the upstream branch "theirs" (default: master). Like for a commit message, your
@@ -227,7 +280,7 @@ your history linear, this one is for you. It applies a pull request using
 Gists
 -----
 
-.. describe:: git hub gist [-d <description>] <file>...
+.. describe:: git hub gist [--description=<description>] <file>...
 
 Creates a gist (with optional description) from the named files. If you specify
 :file:`-` as filename, :file:`stdin` will be used, making it easy to pipe
@@ -239,7 +292,7 @@ List your gists, or those created by another user.
 
 Other
 -----
-.. describe:: git hub calendar [<user>...]
+.. describe:: git hub calendar [<user>]
 
 Show a timeline of a your activity, or that of another user. The timeline will
 look like that on your GitHub profile page::
@@ -253,6 +306,11 @@ look like that on your GitHub profile page::
   F [38;5;237m■ [0m[38;5;28m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;64m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m
     [38;5;65m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;64m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;64m■ [0m[38;5;65m■ [0m[38;5;64m■ [0m[38;5;65m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;65m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;237m■ [0m[38;5;65m■ [0m[38;5;237m■ [0m
 
+.. describe:: git hub check-pages
+
+Check your repository for common misconfigurations in the usage of GitHub
+pages, including DNS checks and content checks.
+
 .. describe:: git hub render [--save=<outfile>] <file>
 
 Lets GitHub render a markdown page and displays the result in your browser or
@@ -264,6 +322,11 @@ GitHub provides :file:`.gitignore` templates for various languages and
 environments. This command will let you quickly grab them and add them to your
 :file:`.gitignore`. For example: :command:`git hub ignore Python C`
 
+.. describe:: git hub ip-addresses [--git] [--hooks] [--importer] [--pages]
+
+This tells you which ip addresses belong to certain github.com services. Very
+useful to keep firewalls and access control lists up-to-date.
+
 .. describe:: git hub network [<level>]
 
 Generates a graphviz graph of people following you, people you follow or people
@@ -274,3 +337,11 @@ who's repositories you've forked. For example::
 Here's mine:
 
 .. image:: _static/network.png
+
+.. describe:: git hub say [<msg>]
+
+This lets the octocat speak to you.
+
+.. describe:: git hub setup-goblet
+
+Set up a configuration for the goblet web interface based on data in GitHub.

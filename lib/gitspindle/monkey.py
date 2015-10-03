@@ -56,7 +56,7 @@ known_options = {
 
 class GitOption(docopt.Option):
     def match(self, left, collected=None):
-        if isinstance(left[0], docopt.Option) and ((self.short == left[0].short and self.short) or (self.long == left[0].long and self.long)):
+        if left and isinstance(left[0], docopt.Option) and ((self.short == left[0].short and self.short) or (self.long == left[0].long and self.long)):
             opt = left.pop(0)
             # Hijack the command argument to store the data
             cmd = [x for x in collected if type(x).__name__ == 'Command'][1]
@@ -87,3 +87,14 @@ def parse_atom(tokens, options):
 
 docopt.orig_parse_atom = docopt.parse_atom
 docopt.parse_atom = parse_atom
+
+def formal_usage(printable_usage):
+    usage = printable_usage.splitlines()
+    ret = []
+    for num, line in enumerate(usage):
+        if line[0].isupper() and usage[num+1].startswith('  git'):
+            continue
+        ret.append(line)
+    return docopt.orig_formal_usage('\n'.join(ret))
+docopt.orig_formal_usage = docopt.formal_usage
+docopt.formal_usage = formal_usage

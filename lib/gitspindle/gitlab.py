@@ -5,7 +5,9 @@ import base64
 import datetime
 import getpass
 import glob
+import json
 import os
+import requests
 import sys
 import webbrowser
 
@@ -16,6 +18,14 @@ class GitLab(GitSpindle):
     spindle = 'gitlab'
     hosts = ['gitlab.com', 'www.gitlab.com']
     api = glapi
+    access_levels = {
+        'guest':     10,
+        'reporter':  20,
+        'developer': 30,
+        'master':    40,
+        'owner':     50,
+    }
+    access_levels_r = dict([(value, key) for (key, value) in access_levels.items()])
 
     # Support functions
     def login(self):
@@ -37,7 +47,10 @@ class GitLab(GitSpindle):
             self.gl.auth()
             token = self.gl.user.private_token
             self.config('token', token)
-            print("Your GitLab authentication token is now cached in %s - do not share this file" % self.config_file)
+            location = '%s - do not share this file' % self.config_file
+            if self.use_credential_helper:
+                location = 'git\'s credential helper'
+            print("Your GitLab authentication token is now stored in %s" % location)
 
         if not user or not token:
             err("No user or token specified")
@@ -75,7 +88,7 @@ class GitLab(GitSpindle):
             return repo.ssh_url_to_repo
         if opts['--http']:
             return repo.http_url_to_repo
-        if repo.owner.username == self.my_login:
+        if repo.namespace.name == self.my_login:
             return repo.ssh_url_to_repo
         return repo.http_url_to_repo
 
@@ -114,6 +127,17 @@ class GitLab(GitSpindle):
         repo = self.gl.Project(merge.project_id)
         return '%s/merge_requests/%d' % (repo.web_url, merge.iid)
 
+    def api_root(self):
+        if hasattr(self, 'gl') and self.gl:
+            return self.gl._url
+        host = self.config('host')
+        if not host:
+            return 'https://gitlab.com/api/v3'
+        host = host.rstrip('/') + '/api/v3'
+        if not host.startswith(('http://', 'https://')):
+            host = 'https://' + host
+        return host
+
     # commands
 
     @command
@@ -133,18 +157,33 @@ class GitLab(GitSpindle):
             glapi.CurrentUserKey(self.gl, {'title': title, 'key': key}).save()
 
     @command
-    def add_remote(self, opts):
-        """[--ssh|--http] <user>...
-           Add user's fork as a remote by that name"""
-        dwim = self.repository(opts)
+    def add_member(self, opts):
+        """[--access-level=guest|reporter|developer|master|owner] <user>...
+           Add a project member"""
+        repo = self.repository(opts)
         for user in opts['<user>']:
-            repo = self.find_repo(user, dwim.name)
-            if not repo:
-                err("Repository %s/%s does not exist" % (user, dwim.name))
-            url = self.clone_url(repo, opts)
-            self.gitm('remote', 'add', user, url)
-            self.gitm('config', 'remote.%s.gitlab-id' % user, repo.id)
-            self.gitm('fetch', user, redirect=False)
+            user_ = self.find_user(user)
+            if not user_:
+                print("No such user: %s" % user)
+                continue
+            user = user_
+            access_level = self.access_levels[opts['--access-level'] or 'developer']
+            glapi.ProjectMember(self.gl, {'project_id': repo.id, 'user_id': user.id, 'access_level': access_level}).save()
+
+    @command
+    def add_remote(self, opts):
+        """[--ssh|--http] <user> [<name>]
+           Add user's fork as a named remote. The name defaults to the user's loginname"""
+        dwim = self.repository(opts)
+        user = opts['<user>'][0]
+        name = opts['<name>'] or user
+        repo = self.find_repo(user, dwim.name)
+        if not repo:
+            err("Repository %s/%s does not exist" % (user, dwim.name))
+        url = self.clone_url(repo, opts)
+        self.gitm('remote', 'add', name, url)
+        self.gitm('config', 'remote.%s.gitlab-id' % name, repo.id)
+        self.gitm('fetch', name, redirect=False)
 
     @command
     def apply_merge(self, opts):
@@ -171,7 +210,7 @@ class GitLab(GitSpindle):
             print(wrap("Merge request has already been closed", fgcolor.red))
             warned = True
         if warned:
-            if raw_input("Continue? [y/N] ") not in ['y', 'Y']:
+            if not self.question("Continue?", default=False):
                 sys.exit(1)
         # Fetch mr if needed
         sha = self.git('rev-parse', '--verify', 'refs/merge/%d/head' % mr.iid).stdout.strip()
@@ -204,6 +243,90 @@ class GitLab(GitSpindle):
         webbrowser.open_new(url)
 
     @command
+    def calendar(self, opts):
+        """[<user>]
+           Show a timeline of a user's activity"""
+        user = (opts['<user>'] or [self.my_login])[0]
+        user = self.find_user(user)
+        months = []
+        rows = [[],[],[],[],[],[],[]]
+        commits = []
+
+        data = requests.get(user.web_url + '/calendar').text
+        data = data[data.find('<script>')+8:data.find('</script>')]
+        data = data[data.find('{')+1:data.find('}')].replace('"', '')
+        data = [(datetime.datetime.fromtimestamp(int(key)), int(value)) for (key,value) in [item.split(':') for item in data.split(',')]]
+
+        wd = (data[0][0].weekday()+1) % 7
+        for i in range(wd):
+            rows[i].append((None,None))
+        if wd:
+            months.append(data[0][0].month)
+        for (date, count) in data:
+            wd = (date.weekday()+1) % 7
+            rows[wd].append((date.day, count))
+            if not wd:
+                months.append(date.month)
+            if count:
+                commits.append(count)
+
+        # Print months
+        sys.stdout.write("  ")
+        last = -1
+        skip = months[2] != months[0]
+        monthtext = ('', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+        for month in months:
+            if month != last:
+                sys.stdout.write(monthtext[month] + ' ')
+                skip = True
+                last = month
+            elif not skip:
+                sys.stdout.write('  ')
+            else:
+                skip = False
+        print("")
+
+        # Print commits
+        days = 'SMTWTFS'
+        commits.sort()
+        p5  = commits[int(round(len(commits) * 0.95))]
+        p15 = commits[int(round(len(commits) * 0.85))]
+        p35 = commits[int(round(len(commits) * 0.65))]
+        blob1 = b'\xe2\x96\xa0'.decode('utf-8')
+        blob2 = b'\xe2\x97\xbc'.decode('utf-8')
+        for rnum, row in enumerate(rows):
+            if rnum % 2:
+                sys.stdout.write(days[rnum] + " ")
+            else:
+                sys.stdout.write("  ")
+            for (day, count) in row:
+                if count is None:
+                    color = attr.conceal
+                elif count > p5:
+                    color = fgcolor.xterm(22)
+                elif count > p15:
+                    color = fgcolor.xterm(28)
+                elif count > p35:
+                    color = fgcolor.xterm(64)
+                elif count:
+                    color = fgcolor.xterm(65)
+                else:
+                    color = fgcolor.xterm(237)
+                if day == 1:
+                    msg = wrap(blob2, attr.underline, color)
+                    if not PY3:
+                        msg = msg.encode('utf-8')
+                    sys.stdout.write(msg)
+                else:
+                    msg = wrap(blob1, color)
+                    if not PY3:
+                        msg = msg.encode('utf-8')
+                    sys.stdout.write(msg)
+                sys.stdout.write(' ')
+            print("")
+
+
+    @command
     def cat(self, opts):
         """<file>...
            Display the contents of a file on GitLab"""
@@ -215,6 +338,7 @@ class GitLab(GitSpindle):
                 repo = self.find_repo(user or self.my_login, repo)
             else:
                 repo = self.repository(opts)
+                file = self.rel2root(file).lstrip('/')
 
             try:
                 file = repo.File(ref=ref or repo.default_branch, file_path=file)
@@ -244,7 +368,7 @@ class GitLab(GitSpindle):
 
     @command
     def create(self, opts):
-        """[--private|--internal] [-d <description>]
+        """[--private|--internal] [--description=<description>]
            Create a repository on gitlab to push to"""
         root = self.gitm('rev-parse', '--show-toplevel').stdout.strip()
         name = os.path.basename(root)
@@ -255,7 +379,7 @@ class GitLab(GitSpindle):
             visibility_level = 10
         elif opts['--private']:
             visibility_level = 10
-        glapi.Project(self.gl, {'name': name, 'description': opts['<description>'] or "", 'visibility_level': visibility_level}).save()
+        glapi.Project(self.gl, {'name': name, 'description': opts['--description'] or "", 'visibility_level': visibility_level}).save()
         if 'origin' in self.remotes():
             print("Remote 'origin' already exists, adding the GitLab repository as 'gitlab'")
             self.set_origin(opts, 'gitlab')
@@ -263,15 +387,34 @@ class GitLab(GitSpindle):
             self.set_origin(opts)
 
     @command
+    def fetch(self, opts):
+        """[--ssh|--http] <user> [<refspec>]
+           Fetch refs from a user's fork"""
+        repo = self.repository(opts)
+        user = opts['<user>'][0]
+        refspec = opts['<refspec>'] or 'refs/heads/*'
+        repo = self.find_repo(user, repo.name)
+        if not repo:
+            err("Repository %s/%s does not exist" % (user, repo.name))
+        if ':' not in refspec:
+            if not refspec.startswith('refs/'):
+                refspec += ':' + 'refs/remotes/%s/' % repo.owner.username + refspec
+            else:
+                refspec += ':' + refspec.replace('refs/heads/', 'refs/remotes/%s/' % repo.owner.username)
+        url = self.clone_url(repo, opts)
+        self.gitm('fetch', url, refspec, redirect=False)
+
+    @command
     def fork(self, opts):
         """[--ssh|--http] [<repo>]
            Fork a repo and clone it"""
         do_clone = bool(opts['<repo>'])
         repo = self.repository(opts)
-        if repo.owner.username == self.my_login:
+        if repo.namespace.name == self.my_login:
             err("You cannot fork your own repos")
 
-        if repo.name in [x.name for x in self.gl.Project()]:
+        my_repo = self.find_repo(self.my_login, repo.name)
+        if my_repo:
             err("Repository already exists")
 
         opts['<repo>'] = repo.fork().name
@@ -302,34 +445,43 @@ class GitLab(GitSpindle):
 # Reporting an issue on %s/%s
 # Please describe the issue as clarly as possible. Lines starting with '#' will
 # be ignored, the first line will be used as title for the issue.
-#""" % (repo.owner.username, repo.name)
+#""" % (repo.namespace.name, repo.name)
             title, body = self.edit_msg(body, 'ISSUE_EDITMSG')
             if not body:
                 err("Empty issue message")
 
-            issue = glapi.ProjectIssue(self.gl, {'project_id': repo.id, 'title': title, 'description': body})
-            issue.save()
-            print("Issue %d created %s" % (issue.iid, self.issue_url(issue)))
+            try:
+                issue = glapi.ProjectIssue(self.gl, {'project_id': repo.id, 'title': title, 'description': body})
+                issue.save()
+                print("Issue %d created %s" % (issue.iid, self.issue_url(issue)))
+            except:
+                filename = self.backup_message(title, body, 'issue-message-')
+                err("Failed to create an issue, the issue text has been saved in %s" % filename)
 
     @command
     def issues(self, opts):
         """[<repo>] [--parent] [<filter>...]
            List issues in a repository"""
-        repo = self.repository(opts)
-        if not repo:
+        if not opts['<repo>'] and not self.in_repo:
             repos = list(self.gl.Project())
         else:
-            repos = [repo]
+            repos = [self.repository(opts)]
         for repo in repos:
             if opts['--parent']:
                 repo = self.parent_repo(repo) or repo
             filters = dict([x.split('=', 1) for x in opts['<filter>']])
             issues = repo.Issue(**filters)
-            if not issues:
+            mergerequests = repo.MergeRequest(state='opened')
+            if not issues and not mergerequests:
                 continue
-            print(wrap("Issues for %s/%s" % (repo.owner.username, repo.name), attr.bright))
-            for issue in issues:
-                print("[%d] %s %s" % (issue.iid, issue.title, self.issue_url(issue)))
+            if issues:
+                print(wrap("Issues for %s/%s" % (repo.namespace.name, repo.name), attr.bright))
+                for issue in issues:
+                    print("[%d] %s %s" % (issue.iid, issue.title, self.issue_url(issue)))
+            if mergerequests:
+                print(wrap("Merge requests for %s/%s" % (repo.namespace.name, repo.name), attr.bright))
+                for mr in mergerequests:
+                    print("[%d] %s %s" % (mr.iid, mr.title, self.merge_url(mr)))
 
     @command
     def log(self, opts):
@@ -372,9 +524,9 @@ class GitLab(GitSpindle):
 
     @command
     def ls(self, opts):
-        """<dir>...
+        """[<dir>...]
            Display the contents of a directory on GitLab"""
-        for arg in opts['<dir>']:
+        for arg in opts['<dir>'] or ['']:
             repo, ref, file = ([None, None] + arg.split(':',2))[-3:]
             user = None
             if repo:
@@ -382,6 +534,7 @@ class GitLab(GitSpindle):
                 repo = self.find_repo(user or self.my_login, repo)
             else:
                 repo = self.repository(opts)
+                file = self.rel2root(file).lstrip('/')
 
             try:
                 content = repo.tree(ref_name=ref or repo.default_branch, path=file)
@@ -395,13 +548,25 @@ class GitLab(GitSpindle):
                 print(fmt % file)
 
     @command
+    def members(self, opts):
+        """[<repo>]
+           List repo memberships"""
+        repo = self.repository(opts)
+        members = repo.Member()
+        members.sort(key=lambda member: (-member.access_level, member.username))
+        maxlen = max([len(member.username) for member in members])
+        fmt = "%%s %%-%ds (%%s)" % maxlen
+        for member in members:
+            print(fmt % (wrap("%-9s" % self.access_levels_r[member.access_level], attr.faint), member.username, member.name))
+
+    @command
     def merge_request(self, opts):
-        """[<branch1:branch2>]
-           Opens a merge request to merge your branch1 to upstream branch2"""
+        """[--yes] [<yours:theirs>]
+           Opens a merge request to merge your branch to an upstream branch"""
         repo = self.repository(opts)
         parent = self.parent_repo(repo) or repo
         # Which branch?
-        src = opts['<branch1:branch2>'] or ''
+        src = opts['<yours:theirs>'] or ''
         dst = None
         if ':' in src:
             src, dst = src.split(':', 1)
@@ -416,22 +581,24 @@ class GitLab(GitSpindle):
         # Try to get the local commit
         commit = self.gitm('show-ref', 'refs/heads/%s' % src).stdout.split()[0]
         # Do they exist on GitLab?
-        srcb = repo.Branch(src)
-        if not srcb:
-            if raw_input("Branch %s does not exist in your GitLab repo, shall I push? [Y/n] " % src).lower() in ['y', 'Y', '']:
+        try:
+            srcb = repo.Branch(src)
+        except glapi.GitlabGetError:
+            srcb = None
+            if self.question("Branch %s does not exist in your GitLab repo, shall I push?" % src):
                 self.gitm('push', repo.remote, src, redirect=False)
             else:
                 err("Aborting")
-        elif srcb and srcb.commit.id != commit:
+        if srcb and srcb.commit.id != commit:
             # Have we diverged? Then there are commits that are reachable from the GitLab branch but not local
             diverged = self.gitm('rev-list', srcb.commit.id, '^' + commit)
             if diverged.stderr or diverged.stdout:
-                if raw_input("Branch %s has diverged from GitLab, shall I push and overwrite? [y/N] " % src) in ['y', 'Y']:
+                if self.question("Branch %s has diverged from GitLab, shall I push and overwrite?" % src, default=False):
                     self.gitm('push', '--force', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
             else:
-                if raw_input("Branch %s not up to date on GitLab, but can be fast forwarded, shall I push? [Y/n] " % src) in ['y', 'Y', '']:
+                if self.question("Branch %s not up to date on GitLab, but can be fast forwarded, shall I push?" % src):
                     self.gitm('push', repo.remote, src, redirect=False)
                 else:
                     err("Aborting")
@@ -475,16 +642,20 @@ class GitLab(GitSpindle):
 #
 # Please enter a message to accompany your merge request. Lines starting
 # with '#' will be ignored, and an empty message aborts the request.
-#""" % (repo.owner.username, src, parent.owner.username, dst)
+#""" % (repo.namespace.name, src, parent.owner.username, dst)
         body += "\n# " + try_decode(self.gitm('shortlog', '%s/%s..%s' % (remote, dst, src)).stdout).strip().replace('\n', '\n# ')
         body += "\n#\n# " + try_decode(self.gitm('diff', '--stat', '%s^..%s' % (commits[0], commits[-1])).stdout).strip().replace('\n', '\n#')
-        title, body = self.edit_msg("%s\n\n%s" % (title,body), 'merge_REQUEST_EDIT_MSG')
+        title, body = self.edit_msg("%s\n\n%s" % (title,body), 'MERGE_REQUEST_EDIT_MSG')
         if not body:
             err("No merge request message specified")
 
-        merge = glapi.ProjectMergeRequest(self.gl, {'project_id': repo.id, 'target_project_id': parent.id, 'source_branch': src, 'target_branch': dst, 'title': title, 'description': body})
-        merge.save()
-        print("merge request %d created %s" % (merge.iid, self.merge_url(merge)))
+        try:
+            merge = glapi.ProjectMergeRequest(self.gl, {'project_id': repo.id, 'target_project_id': parent.id, 'source_branch': src, 'target_branch': dst, 'title': title, 'description': body})
+            merge.save()
+            print("merge request %d created %s" % (merge.iid, self.merge_url(merge)))
+        except:
+            filename = self.backup_message(title, body, 'merge-request-message-')
+            err("Failed to create a merge request, the merge request text has been saved in %s" % filename)
 
     @command
     def mirror(self, opts):
@@ -492,7 +663,7 @@ class GitLab(GitSpindle):
            Mirror a repository, or all your repositories"""
         if opts['<repo>'] and opts['<repo>'] == '*':
             for repo in self.gl.Project():
-                opts['<repo>'] = '%s/%s' % (repo.owner.username, name)
+                opts['<repo>'] = '%s/%s' % (repo.namespace.name, name)
                 self.mirror(opts)
             return
         repo = self.repository(opts)
@@ -523,6 +694,23 @@ class GitLab(GitSpindle):
                 os.mkdir(goblet_dir, 0o777)
                 os.chmod(goblet_dir, 0o777)
 
+    @command
+    def protect(self, opts):
+        """<branch>
+           Protect a branch against force-pushes"""
+        repo = self.repository(opts)
+        for branch in repo.Branch():
+            if branch.name == opts['<branch>']:
+                branch.protect()
+                break
+
+    @command
+    def protected(self, opts):
+        """\nList protected branches"""
+        repo = self.repository(opts)
+        for branch in repo.Branch():
+            if branch.protected:
+                print(branch.name)
 
     @command
     def public_keys(self, opts):
@@ -542,6 +730,15 @@ class GitLab(GitSpindle):
             pass
 
     @command
+    def remove_member(self, opts):
+        """<user>...
+           Remove a user's membership"""
+        repo = self.repository(opts)
+        for member in repo.Member():
+            if member.username in opts['<user>']:
+                member.delete()
+
+    @command
     def repos(self, opts):
         """[--no-forks]
            List all your repos"""
@@ -549,6 +746,7 @@ class GitLab(GitSpindle):
         if not repos:
             return
         maxlen = max([len(x.name) for x in repos])
+        fmt = u"%%-%ds %%s" % maxlen
         for repo in repos:
             color = [attr.normal]
             if repo.visibility_level == 0:
@@ -560,9 +758,10 @@ class GitLab(GitSpindle):
                     continue
                 color.append(attr.faint)
             name = repo.name
-            if self.my_login != repo.owner.username:
-                name = '%s/%s' % (repo.owner.username, name)
-            msg = wrap(name, *color)
+            if self.my_login != repo.namespace.name:
+                name = '%s/%s' % (repo.namespace.name, name)
+            desc = ' '.join((repo.description or '').splitlines())
+            msg = wrap(fmt % (name, desc), *color)
             if not PY3:
                 msg = msg.encode('utf-8')
             print(msg)
@@ -574,7 +773,7 @@ class GitLab(GitSpindle):
            If this is a fork, set the remote 'upstream' to the parent"""
         repo = self.repository(opts)
         # Is this mine? No? Do I have a clone?
-        if repo.owner.username != self.my_login:
+        if repo.namespace.name != self.my_login:
             my_repo = self.find_repo(self.my_login, repo.name)
             if my_repo:
                 repo = my_repo
@@ -606,10 +805,20 @@ class GitLab(GitSpindle):
         for branch in self.git('for-each-ref', 'refs/heads/**').stdout.strip().splitlines():
             branch = branch.split(None, 2)[-1][11:]
             if self.git('for-each-ref', 'refs/remotes/origin/%s' % branch).stdout.strip():
-                if self.gitm('config', 'branch.%s.remote' % branch).returncode != 0:
+                if self.git('config', 'branch.%s.remote' % branch).returncode != 0:
                     print("Marking %s as remote-tracking branch" % branch)
                     self.gitm('config', 'branch.%s.remote' % branch, 'origin')
                     self.gitm('config', 'branch.%s.merge' % branch, 'refs/heads/%s' % branch)
+
+    @command
+    def unprotect(self, opts):
+        """<branch>
+           Remove force-push protection from a branch"""
+        repo = self.repository(opts)
+        for branch in repo.Branch():
+            if branch.name == opts['<branch>']:
+                branch.unprotect()
+                break
 
     @command
     def whoami(self, opts):

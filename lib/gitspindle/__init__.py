@@ -7,7 +7,7 @@ import sys
 import tempfile
 import whelk
 
-__all__ = ['GitSpindle', 'command', 'wants_parent']
+__all__ = ['GitSpindle', 'Credential', 'command', 'wants_parent']
 NO_VALUE_SENTINEL = 'NO_VALUE_SENTINEL'
 
 __builtins__['PY3'] = sys.version_info[0] > 2
@@ -67,6 +67,7 @@ class GitSpindle(object):
         self.commands = {}
         self.accounts = {}
         self.my_login = {}
+        self.use_credential_helper = self.git('config', 'credential.helper').stdout.strip() not in ('', 'cache')
         self.usage = """%s - %s integration for git
 A full manual can be found on http://seveas.github.com/git-spindle/
 
@@ -79,12 +80,16 @@ Usage:\n""" % (self.prog, self.what)
                 name = name[:-1]
             name = name.replace('_', '-')
             self.commands[name] = fnc
-            self.usage += ('  %s %s %s %s\n' % (self.prog, '[options]', name, fnc.__doc__.split('\n', 1)[0].strip()))
+            doc = [line.strip() for line in fnc.__doc__.splitlines()]
+            if doc[0]:
+                doc[0] = ' ' + doc[0]
+            self.usage += '%s:\n  %s %s %s%s\n' % (doc[1], self.prog, '[options]', name, doc[0])
         self.usage += """
 Options:
   -h --help              Show this help message and exit
   --desc=<description>   Description for the new gist/repo
   --parent               Use the parent of a forked repo
+  --yes                  Automatically answer yes to questions
   --issue=<issue>        Turn this issue into a pull request
   --http                 Use https:// urls for cloning 3rd party repos
   --ssh                  Use ssh:// urls for cloning 3rd party repos
@@ -102,6 +107,8 @@ Options:
         return result
 
     def config(self, key, value=NO_VALUE_SENTINEL):
+        if key in ('token', 'password') and self.use_credential_helper:
+            return self.config_secret(key, value)
         section = self.spindle
         if self.account:
             section = '%s.%s' % (self.spindle, self.account)
@@ -120,6 +127,18 @@ Options:
                 return self.gitm('config', '--file', self.config_file, key, value)
             finally:
                 os.umask(umask)
+
+    def config_secret(self, key, value=NO_VALUE_SENTINEL):
+        url = urlparse.urlparse(self.api_root())
+        credential = Credential(protocol=url.scheme, host=url.hostname, path=url.path, username=self.my_login or self.config('user'), password=value)
+        if value == NO_VALUE_SENTINEL:
+            credential.password = ''
+            credential.fill_noninteractive()
+            return credential.password
+        elif value is None:
+            credential.reject()
+        else:
+            credential.approve()
 
     def _parse_url(self, url):
         if '://' not in url and ':' in url:
@@ -148,7 +167,7 @@ Options:
         #   - Is it mine? Yes -> return it('s parent), No -> remember it
         #   - Return the first rememered one(s parent)
         #  FIXME: errors should mention account if available
-        remote = host = None
+        remote = host = repo = None
         if opts['<repo>']:
             host, user, repo = self._parse_url(opts['<repo>'])
             if not repo:
@@ -164,32 +183,45 @@ Options:
                 remote = remote.split('.')[1]
                 host, user, repo = self._parse_url(url)
                 if repo and not first:
-                    first = host, user, repo
+                    first = remote, host, user, repo
                 if user == self.my_login:
                     break
             else:
                 if first:
-                    host, user, repo = first
+                    remote, host, user, repo = first
 
         if hostname_only:
             return host
+        if not repo:
+            remote, user, repo  = None, self.my_login, os.path.basename(self.repo_root())
         if repo and repo.endswith('.git'):
             repo = repo[:-4]
-        if not repo:
-            remote, user, repo  = None, self.my_login, os.path.basename(os.getcwd())
+
         repo_ = self.get_repo(remote, user, repo)
 
         if not repo_:
             err("Repository %s/%s could not be found on %s" % (user, repo, self.what))
 
+        repo_.remote = remote
         if opts['--parent'] or opts['--maybe-parent']:
             parent = self.parent_repo(repo_)
             if parent:
                 repo_ = parent
+                repo_.remote = None
             elif opts['--parent']:
                 err("No parent repo found for %s/%s" % (user, repo))
 
         return repo_
+
+    def question(self, question, default=True):
+        yn = ['y/N', 'Y/n'][default or self.assume_yes]
+        if self.assume_yes:
+            print("%s [%s] Y" % (question, yn))
+            return True
+        answer = raw_input("%s [%s] " % (question, yn))
+        if not answer:
+            return default
+        return answer.lower() == 'y'
 
     def edit_msg(self, msg, filename):
         if self.git('rev-parse'):
@@ -198,7 +230,7 @@ Options:
             fd, temp_file = tempfile.mkstemp(prefix=filename)
             os.close(fd)
         with open(temp_file, 'w') as fd:
-            fd.write(msg.encode('utf-8'))
+            fd.write(msg)
         editor = shlex.split(self.gitm('var', 'GIT_EDITOR').stdout) + [temp_file]
         self.shell[editor[0]](*editor[1:], redirect=False)
         with open(temp_file) as fd:
@@ -209,11 +241,36 @@ Options:
         body = re.sub('^#.*', '', body, flags=re.MULTILINE).strip()
         return title, body
 
+    def backup_message(self, title, body, filename):
+        msg = "%s\n\n%s" % (title, body)
+        fd, temp_file = tempfile.mkstemp(prefix=filename)
+        with os.fdopen(fd,'w') as fd:
+            fd.write(msg.encode('utf-8'))
+        return temp_file
+
+    def repo_root(self):
+        root = self.shell.git('rev-parse', '--show-toplevel').stdout.strip()
+        if not root:
+            root = self.shell.git('rev-parse', '--git-dir').stdout.strip()
+        root = os.path.abspath(root)
+        return root
+
+    def rel2root(self, path):
+        if path.startswith('/'):
+            return os.path.normpath(path)
+        path = os.path.abspath(path)
+        root = self.repo_root()
+        if not path.startswith(root):
+            raise ValueError("Path not inside the git repository")
+        path = path.replace(root, '')
+        return path
+
     def main(self):
         argv = self.prog.split()[1:] + sys.argv[1:]
         opts = docopt.docopt(self.usage, argv)
         self.account = opts['--account'] or os.environ.get('GITSPINDLE_ACCOUNT', None)
-        if self.account and not self.config('user'):
+        self.assume_yes = opts['--yes']
+        if self.account and not self.config('user') and not opts['config']:
             err("%s does not yet know about %s. Use %s add-account to configure it" % (self.prog, self.account, self.prog))
         hosts = self.git('config', '--file', self.config_file, '--get-regexp', '%s.*host' % self.spindle).stdout.strip()
 
@@ -309,29 +366,100 @@ Options:
 
     @hidden_command
     def test_cleanup(self, opts):
-        """\nDelete all keys and repos of an account, used in tests"""
-        if 'test' not in self.my_login:
+        """[--keys] [--repos] [--gists]
+        Delete all keys and repos of an account, used in tests"""
+        if not self.my_login.startswith('git-spindle-test-'):
             raise RuntimeError("Can only clean up test accounts")
 
         if self.api.__name__ == 'github3':
-            for key in self.gh.iter_keys():
-                key.delete()
-            for repo in self.gh.iter_repos():
-                if repo.owner.login == self.my_login:
-                    if not repo.delete():
-                        raise RuntimeError("Deleting repository failed")
+            if opts['--keys']:
+                for key in self.gh.iter_keys():
+                    key.delete()
+            if opts['--repos']:
+                for repo in self.gh.iter_repos():
+                    if repo.owner.login == self.my_login:
+                        if not repo.delete():
+                            raise RuntimeError("Deleting repository failed")
+            if opts['--gists']:
+                for gist in self.gh.iter_gists():
+                    gist.delete()
 
         elif self.api.__name__ == 'gitspindle.bbapi':
-            for key in self.me.keys():
-                key.delete()
-            for repo in self.me.repositories():
-                repo.delete()
+            if opts['--keys']:
+                for key in self.me.keys():
+                    key.delete()
+            if opts['--repos']:
+                for repo in self.me.repositories():
+                    repo.delete()
+            if opts['--gists']:
+                for snippet in self.me.snippets():
+                    snippet.delete()
 
         elif self.api.__name__ == 'gitspindle.glapi':
-            for key in self.me.Key():
-                key.delete()
-            for repo in self.gl.Project():
-                repo.delete()
+            if opts['--keys']:
+                for key in self.me.Key():
+                    key.delete()
+            if opts['--repos']:
+                for repo in self.gl.Project():
+                    repo.delete()
 
         else:
             raise UtterConfusion()
+
+class Credential(object):
+    shell = whelk.Shell(encoding='utf-8')
+    params = ['protocol', 'host', 'path', 'username', 'password']
+
+    def __init__(self, protocol, host, path='', username='', password=''):
+        self.protocol = protocol
+        self.host = host
+        self.path = path
+        self.username = username
+        self.password = password
+
+    def __str__(self):
+        return '%s://%s:%s@%s/%s' % (self.protocol, self.username, self.password, self.host, self.path)
+
+    def __repr__(self):
+        return '<Credential %s>' % str(self)
+
+    def fill(self):
+        self.communicate('fill')
+
+    def fill_noninteractive(self):
+        env = os.environ.copy()
+        env['GIT_TERMINAL_PROMPT'] = '0'
+        env.pop('GIT_ASKPASS', None)
+        env.pop('SSH_ASKPASS', None)
+        self.communicate('fill', env=env)
+
+    def approve(self):
+        if not self.username or not self.password:
+            raise ValueError("No username or password specified")
+        self.communicate('approve')
+
+    def reject(self):
+        if not self.username:
+            raise ValueError("No username specified")
+        self.communicate('reject')
+        self.password = ''
+
+    def communicate(self, action, env=os.environ):
+        data = self.format() + '\n\n'
+        if env.get('GIT_TERMINAL_PROMPT', None) == '0':
+            ret = self.shell.git('-c', 'core.askpass=', 'credential', action, env=env, input=data)
+        else:
+            ret = self.shell.git('credential', action, env=env, input=data)
+        if not ret:
+            if 'terminal prompts disabled' not in ret.stderr:
+                raise RuntimeError("git credential %s failed: %s" % (action, ret.stderr))
+        self.parse(ret.stdout)
+
+    def format(self):
+        return '\n'.join(['%s=%s' % (x, getattr(self, x)) for x in self.params if getattr(self, x)])
+
+    def parse(self, text):
+        for key, val in [line.split('=', 1) for line in text.splitlines() if line]:
+            if key not in self.params:
+                raise ValueError("Unexpected data: %s=%s" % (key, val))
+            setattr(self, key, val)
