@@ -24,7 +24,7 @@ BitBucket thinks about who you are. For example::
   Location: The Netherlands
   RSA key   ...N0nFw3oW5l (Dennis Kaarsemaker (git))
 
-.. describe:: git bb whois
+.. describe:: git bb whois <user>...
 
 If you want to see this information about other users, use :command:`git bb whois`::
 
@@ -32,7 +32,7 @@ If you want to see this information about other users, use :command:`git bb whoi
   [1;4mBill Blough[0m
   Profile:  https://bitbucket.org/bblough
 
-.. describe:: git bb repos [--no-forks] [<user>...]
+.. describe:: git bb repos [--no-forks] [<user>]
 
 List all repositories owned by a user, by default you. Specify :option:`--no-forks`
 to exclude forked repositories.
@@ -41,10 +41,15 @@ to exclude forked repositories.
 
 Add SSH public keys (default: :file:`~/.ssh/*.pub`) to your account.
 
-.. describe:: git bb public-keys <user>
+.. describe:: git bb public-keys [<user>]
 
 Display all public keys of a user, in a format that can be added to
 :file:`~/.authorized_keys`.
+
+.. describe:: git bb add-account [--host=<host>] <alias>
+
+:command:`git bb` supports multiple accounts. To add a new account, use the
+:command:`add-account` command.
 
 .. describe:: git bb config [--unset] <key> [<value>]
 
@@ -55,7 +60,7 @@ is hardcoded to be the current account.
 Interacting with repositories
 -----------------------------
 
-.. describe:: git bb create [--private] [-d <description>]
+.. describe:: git bb create [--private] [--description=<description>]
 
 Create a (possibly private) repository on BitBucket for your current repository. An
 optional description can be given too. After running this command, a repository
@@ -86,7 +91,7 @@ Display the contents of a file on BitBucket. File can start with repository
 names and refs. For example: `master:bin/git-bb`,
 `git-spindle:master:bin/git-bb` or `seveas/git-spindle:master:bin/git-bb`.
 
-.. describe:: git bb ls <dir>...
+.. describe:: git bb ls [<dir>...]
 
 Display the contents of a directory on BitBucket. Directory can start with
 repository names and refs. For example: `master:bin/git-bb`,
@@ -101,15 +106,21 @@ with set-origin, the "origin" and "upstream" remotes will be set up too.
 Calling fork in a previously cloned-but-not-forked repository will create a
 fork of that repository and set up your remotes.
 
-.. describe:: git bb forks
+.. describe:: git bb forks [<repo>]
 
 List all forks of this repository, highlighting the original repository.
 
-.. describe:: git bb add-remote [--ssh|--http] [<user>]
+.. describe:: git bb add-remote [--ssh|--http] <user> [<name>]
 
-Add a users fork as a remote using the user's login as name for the remote.
-Defaults to adding an http url, but this can be overridden. For private repos
-SSH is used.
+Add a users fork as a remote using the specified name or the user's login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.
+
+.. describe:: git bb fetch [--ssh|--http] <user> [<refspec>]
+
+If you don't want to add a user's fork as a remote, but to want to fetch some
+refs from it, you can use the :command:`fetch` command. You can tell it which
+refs to fetch, and if you don't give a refspec, it will fetch all branches.
 
 .. describe:: git bb browse [--parent] [<repo>] [<section>]
 
@@ -128,6 +139,41 @@ When you use the :option:`--goblet` option, the resulting mirror will be
 configured for the goblet web interface, using description, owner and clone
 information from BitBucket.
 
+Administering repositories
+--------------------------
+.. describe:: git bb privileges [<repo>]
+
+List all people with access to this repository. Beware that BitBucket
+aggressively caches permissions and it can take up to a minute for a change in
+permissions to be reflected in the output of this command. The owner of the
+repository is also not listed in the output.
+
+.. describe:: git bb add-privilege [--admin|--read|--write] <user>...
+
+Grant people read, write or admin access to this repository.
+
+.. describe:: git bb remove-privilege <user>...
+
+Revoke access to this repository.
+
+.. describe:: git bb invite [--read|--write|--admin] <email>...
+
+Invite users by e-mail to collaborate on this repository.
+
+.. describe:: git bb deploy-keys [<repo>]
+
+List all deploy keys for this repository
+
+.. describe:: git bb add-deploy-key <key>...
+
+Add a deploy key to a repository, which can be used to fetch and push data via
+ssh.
+
+.. describe:: git bb remove-deploy-key <key>...
+
+Remove a deploy key by id. Use the :command:`git bb deploy-keys` command to
+see the id's of your deploy keys.
+
 Issues and pull requests
 ------------------------
 
@@ -143,7 +189,7 @@ can use the :option:`--parent` option to use the parent repository. If you do
 not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.
 
-.. describe:: git bb pull-request <yours:theirs>
+.. describe:: git bb pull-request [--yes] [<yours:theirs>]
 
 Files a pull request to merge branch "yours" (default: the current branch) into
 the upstream branch "theirs" (default: master). Like for a commit message, your
@@ -157,3 +203,16 @@ that is not ascii or utf-8, git bb will misbehave.
 BitBucket makes it easy for you to merge pull requests, but if you want to keep
 your history linear, this one is for you. It applies a pull request using
 :command:`git cherry-pick` instead of merging.
+
+Snippets
+--------
+
+.. describe:: git bb snippet [--description=<description>] <file>...
+
+Creates a snippet (with optional description) from the named files. If you specify
+:file:`-` as filename, :file:`stdin` will be used, making it easy to pipe
+command output to BitBucket, for example: :command:`fortune | git bb snippet -`
+
+.. describe:: git bb snippets [<user>]
+
+List your snippets, or those created by another user.

@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for GitLab &mdash; git-spindle 2.5 documentation</title>
+    <title>Git spindle for GitLab &mdash; git-spindle 3.0 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.5',
+        VERSION:     '3.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 2.5 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 3.0 documentation" href="index.html" />
     <link rel="next" title="Git spindle for BitBucket" href="bitbucket.html" />
     <link rel="prev" title="Git spindle for GitHub" href="github.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -92,7 +92,7 @@ RSA key   ...N0nFw3oW5l (Dennis Kaarsemaker (git))
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab whois</tt></dt>
+<tt class="descname">git lab whois &lt;user&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>If you want to see some information about other users, use <strong class="command">git lab whois</strong>:</p>
@@ -132,6 +132,16 @@ other users.</p>
 comments.</p>
 <dl class="describe">
 <dt>
+<tt class="descname">git lab add-account [--host=&lt;host&gt;] &lt;alias&gt;</tt></dt>
+<dd></dd></dl>
+
+<p><strong class="command">git lab</strong> supports multiple accounts. To add a new account, use the
+<strong class="command">add-account</strong> command. If the account lives on a Gitlab CE or EE
+instance, you can specify its hostname. To change the hostname of any account,
+including the default one, you can use the <strong class="command">config</strong> command as
+follows: <strong class="command">git lab config host https://gitlab.example.com</strong>.</p>
+<dl class="describe">
+<dt>
 <tt class="descname">git lab config [--unset] &lt;key&gt; [&lt;value&gt;]</tt></dt>
 <dd></dd></dl>
 
@@ -143,7 +153,7 @@ is hardcoded to be the current account.</p>
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab create [--private|--internal] [-d &lt;description&gt;]</tt></dt>
+<tt class="descname">git lab create [--private|--internal] [--description=&lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Create a (possibly private/internal) repository on GitLab for your current
@@ -172,7 +182,7 @@ but this can be overridden. For non-public repos SSH is used.</p>
 <strong class="command">git clone</strong>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab cat &lt;file&gt;</tt></dt>
+<tt class="descname">git lab cat &lt;file&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>Display the contents of a file on GitLab. File can start with repository names
@@ -180,7 +190,7 @@ and refs. For example: <cite>master:bin/git-lab</cite>, <cite>git-spindle:master
 or <cite>seveas/git-spindle:master:bin/git-lab</cite>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab ls &lt;dir&gt;...</tt></dt>
+<tt class="descname">git lab ls [&lt;dir&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>Display the contents of a directory on GitLab. Directory can start with
@@ -198,12 +208,20 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 fork of that repository and set up your remotes.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab add-remote [--ssh|--http] &lt;user&gt;...</tt></dt>
+<tt class="descname">git lab add-remote [--ssh|--http] &lt;user&gt; [&lt;name&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
-Defaults to adding an http url, but this can be overridden. For non-public repos
-SSH is used.</p>
+<p>Add a users fork as a remote using the specified name or the user&#8217;s login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab fetch [--ssh|--http] &lt;user&gt; [&lt;refspec&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>If you don&#8217;t want to add a user&#8217;s fork as a remote, but to want to fetch some
+refs from it, you can use the <strong class="command">fetch</strong> command. You can tell it which
+refs to fetch, and if you don&#8217;t give a refspec, it will fetch all branches.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git lab browse [--parent] [&lt;repo&gt;] [&lt;section&gt;]</tt></dt>
@@ -225,6 +243,47 @@ argument, the current repository will be updated. You can also specify
 configured for the goblet web interface, using description, owner and clone
 information from GitLab.</p>
 </div>
+<div class="section" id="administering-repositories">
+<h2>Administering repositories<a class="headerlink" href="#administering-repositories" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab members [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List all people with push access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab add-member [--access-level=guest|reporter|developer|master|owner] &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Grant people access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab remove-member &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Revoke access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab protected</tt></dt>
+<dd></dd></dl>
+
+<p>List all protected branches. Protected branches cannot be force-pushed or
+deleted, and can only be pushed to by people with the master or owner access
+level.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab protect &lt;branch&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Mark a branch as protected.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab unprotect &lt;branch&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Remove a branch&#8217;s protection.</p>
+</div>
 <div class="section" id="issues-and-pull-requests">
 <h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
@@ -245,7 +304,7 @@ not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git lab merge-request &lt;yours:theirs&gt;</tt></dt>
+<tt class="descname">git lab merge-request [--yes] [&lt;yours:theirs&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
@@ -265,6 +324,16 @@ and you will not be asked to write a pull request message.</p>
 your history linear, this one is for you. It applies a merge request using
 <strong class="command">git cherry-pick</strong> instead of merging.</p>
 </div>
+<div class="section" id="other">
+<h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git lab calendar [&lt;user&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Show a timeline of a your activity, or that of another user. The timeline will
+look like that on your GitLab profile page.</p>
+</div>
 </div>
 
 
@@ -278,7 +347,9 @@ your history linear, this one is for you. It applies a merge request using
 <li><a class="reference internal" href="#">Git spindle for GitLab</a><ul>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
 <li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
+<li><a class="reference internal" href="#administering-repositories">Administering repositories</a></li>
 <li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
+<li><a class="reference internal" href="#other">Other</a></li>
 </ul>
 </li>
 </ul>
@@ -325,7 +396,7 @@ your history linear, this one is for you. It applies a merge request using
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>

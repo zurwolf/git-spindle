@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for BitBucket &mdash; git-spindle 2.5 documentation</title>
+    <title>Git spindle for BitBucket &mdash; git-spindle 3.0 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.5',
+        VERSION:     '3.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 2.5 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 3.0 documentation" href="index.html" />
     <link rel="next" title="Using multiple accounts" href="accounts.html" />
     <link rel="prev" title="Git spindle for GitLab" href="gitlab.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="gitlab.html" title="Git spindle for GitLab"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -87,7 +87,7 @@ RSA key   ...N0nFw3oW5l (Dennis Kaarsemaker (git))
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb whois</tt></dt>
+<tt class="descname">git bb whois &lt;user&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>If you want to see this information about other users, use <strong class="command">git bb whois</strong>:</p>
@@ -98,7 +98,7 @@ Profile:  https://bitbucket.org/bblough
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb repos [--no-forks] [&lt;user&gt;...]</tt></dt>
+<tt class="descname">git bb repos [--no-forks] [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>List all repositories owned by a user, by default you. Specify <em class="xref std std-option">--no-forks</em>
@@ -111,11 +111,18 @@ to exclude forked repositories.</p>
 <p>Add SSH public keys (default: <tt class="file docutils literal"><span class="pre">~/.ssh/*.pub</span></tt>) to your account.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb public-keys &lt;user&gt;</tt></dt>
+<tt class="descname">git bb public-keys [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Display all public keys of a user, in a format that can be added to
 <tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb add-account [--host=&lt;host&gt;] &lt;alias&gt;</tt></dt>
+<dd></dd></dl>
+
+<p><strong class="command">git bb</strong> supports multiple accounts. To add a new account, use the
+<strong class="command">add-account</strong> command.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git bb config [--unset] &lt;key&gt; [&lt;value&gt;]</tt></dt>
@@ -129,7 +136,7 @@ is hardcoded to be the current account.</p>
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb create [--private] [-d &lt;description&gt;]</tt></dt>
+<tt class="descname">git bb create [--private] [--description=&lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Create a (possibly private) repository on BitBucket for your current repository. An
@@ -166,7 +173,7 @@ names and refs. For example: <cite>master:bin/git-bb</cite>,
 <cite>git-spindle:master:bin/git-bb</cite> or <cite>seveas/git-spindle:master:bin/git-bb</cite>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb ls &lt;dir&gt;...</tt></dt>
+<tt class="descname">git bb ls [&lt;dir&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>Display the contents of a directory on BitBucket. Directory can start with
@@ -184,18 +191,26 @@ with set-origin, the &#8220;origin&#8221; and &#8220;upstream&#8221; remotes wil
 fork of that repository and set up your remotes.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb forks</tt></dt>
+<tt class="descname">git bb forks [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>List all forks of this repository, highlighting the original repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb add-remote [--ssh|--http] [&lt;user&gt;]</tt></dt>
+<tt class="descname">git bb add-remote [--ssh|--http] &lt;user&gt; [&lt;name&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
-Defaults to adding an http url, but this can be overridden. For private repos
-SSH is used.</p>
+<p>Add a users fork as a remote using the specified name or the user&#8217;s login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb fetch [--ssh|--http] &lt;user&gt; [&lt;refspec&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>If you don&#8217;t want to add a user&#8217;s fork as a remote, but to want to fetch some
+refs from it, you can use the <strong class="command">fetch</strong> command. You can tell it which
+refs to fetch, and if you don&#8217;t give a refspec, it will fetch all branches.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git bb browse [--parent] [&lt;repo&gt;] [&lt;section&gt;]</tt></dt>
@@ -217,6 +232,56 @@ argument, the current repository will be updated. You can also specify
 configured for the goblet web interface, using description, owner and clone
 information from BitBucket.</p>
 </div>
+<div class="section" id="administering-repositories">
+<h2>Administering repositories<a class="headerlink" href="#administering-repositories" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb privileges [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List all people with access to this repository. Beware that BitBucket
+aggressively caches permissions and it can take up to a minute for a change in
+permissions to be reflected in the output of this command. The owner of the
+repository is also not listed in the output.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb add-privilege [--admin|--read|--write] &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Grant people read, write or admin access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb remove-privilege &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Revoke access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb invite [--read|--write|--admin] &lt;email&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Invite users by e-mail to collaborate on this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb deploy-keys [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List all deploy keys for this repository</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb add-deploy-key &lt;key&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Add a deploy key to a repository, which can be used to fetch and push data via
+ssh.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb remove-deploy-key &lt;key&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Remove a deploy key by id. Use the <strong class="command">git bb deploy-keys</strong> command to
+see the id&#8217;s of your deploy keys.</p>
+</div>
 <div class="section" id="issues-and-pull-requests">
 <h2>Issues and pull requests<a class="headerlink" href="#issues-and-pull-requests" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
@@ -237,7 +302,7 @@ not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb pull-request &lt;yours:theirs&gt;</tt></dt>
+<tt class="descname">git bb pull-request [--yes] [&lt;yours:theirs&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
@@ -255,6 +320,23 @@ that is not ascii or utf-8, git bb will misbehave.</p>
 your history linear, this one is for you. It applies a pull request using
 <strong class="command">git cherry-pick</strong> instead of merging.</p>
 </div>
+<div class="section" id="snippets">
+<h2>Snippets<a class="headerlink" href="#snippets" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb snippet [--description=&lt;description&gt;] &lt;file&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Creates a snippet (with optional description) from the named files. If you specify
+<tt class="file docutils literal"><span class="pre">-</span></tt> as filename, <tt class="file docutils literal"><span class="pre">stdin</span></tt> will be used, making it easy to pipe
+command output to BitBucket, for example: <strong class="command">fortune | git bb snippet -</strong></p>
+<dl class="describe">
+<dt>
+<tt class="descname">git bb snippets [&lt;user&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List your snippets, or those created by another user.</p>
+</div>
 </div>
 
 
@@ -268,7 +350,9 @@ your history linear, this one is for you. It applies a pull request using
 <li><a class="reference internal" href="#">Git spindle for BitBucket</a><ul>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
 <li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
+<li><a class="reference internal" href="#administering-repositories">Administering repositories</a></li>
 <li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
+<li><a class="reference internal" href="#snippets">Snippets</a></li>
 </ul>
 </li>
 </ul>
@@ -315,7 +399,7 @@ your history linear, this one is for you. It applies a pull request using
         <li class="right" >
           <a href="gitlab.html" title="Git spindle for GitLab"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>

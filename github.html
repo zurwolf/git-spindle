@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for GitHub &mdash; git-spindle 2.5 documentation</title>
+    <title>Git spindle for GitHub &mdash; git-spindle 3.0 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '2.5',
+        VERSION:     '3.0',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 2.5 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 3.0 documentation" href="index.html" />
     <link rel="next" title="Git spindle for GitLab" href="gitlab.html" />
     <link rel="prev" title="Git subcommands for interacting with central services" href="index.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -94,7 +94,7 @@ RSA key   ...N0nFw3oW5l (Dennis)
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub whois</tt></dt>
+<tt class="descname">git hub whois &lt;user&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>If you want to see this information about other users, use <strong class="command">git hub whois</strong>:</p>
@@ -128,7 +128,7 @@ Gists     9 public, 0 private
 </div>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub repos [--no-forks] [&lt;user&gt;...]</tt></dt>
+<tt class="descname">git hub repos [--no-forks] [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>List all repositories owned by a user, by default you. Specify <em class="xref std std-option">--no-forks</em>
@@ -158,18 +158,40 @@ instead of yours.</p>
 e.g. <em class="xref std std-option">--type=push</em>.</p>
 <dl class="describe">
 <dt>
+<tt class="descname">git hub add-account [--host=&lt;host&gt;] &lt;alias&gt;</tt></dt>
+<dd></dd></dl>
+
+<p><strong class="command">git hub</strong> supports multiple accounts. To add a new account, use the
+<strong class="command">add-account</strong> command. If the account lives on a GitHub Enterprise
+instance, you can specify its hostname. To change the hostname of any account,
+including the default one, you can use the <strong class="command">config</strong> command as
+follows: <strong class="command">git hub config host https://github.example.com</strong>.</p>
+<dl class="describe">
+<dt>
 <tt class="descname">git hub config [--unset] &lt;key&gt; [&lt;value&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Set, get or unset a configuration variable in <tt class="file docutils literal"><span class="pre">~/.gitspindle</span></tt>. Similar to
 <strong class="command">git config</strong>, but only single-level keys are allowed, and the section
 is hardcoded to be the current account.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub create-token [--store]</tt></dt>
+<dd></dd></dl>
+
+<p>Create a personal access token that can be used for git operations (clone,
+fetch, push) over http. Especially useful if you use two-factor authentication,
+as these tokens can be used instead of your password and don&#8217;t require the
+second factor.</p>
+<p>The token is shown in the output of the command. If you specify
+<em class="xref std std-option">--store</em>, the token will also be stored using the git credential
+helpers.</p>
 </div>
 <div class="section" id="interacting-with-repositories">
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub create [--private] [-d &lt;description&gt;]</tt></dt>
+<tt class="descname">git hub create [--private] [--description=&lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Create a (possibly private) repository on GitHub for your current repository. An
@@ -206,7 +228,7 @@ and refs. For example: <cite>master:bin/git-hub</cite>, <cite>git-spindle:master
 or <cite>seveas/git-spindle:master:bin/git-hub</cite>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub ls &lt;dir&gt;...</tt></dt>
+<tt class="descname">git hub ls [&lt;dir&gt;...]</tt></dt>
 <dd></dd></dl>
 
 <p>Display the contents of a directory on GitHub. Directory can start with
@@ -230,12 +252,20 @@ fork of that repository and set up your remotes.</p>
 <p>List all forks of this repository, highlighting the original repository.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub add-remote [--ssh|--http|--git] [&lt;user&gt;]</tt></dt>
+<tt class="descname">git hub add-remote [--ssh|--http|--git] &lt;user&gt; [&lt;name&gt;]</tt></dt>
 <dd></dd></dl>
 
-<p>Add a users fork as a remote using the user&#8217;s login as name for the remote.
-Defaults to adding a git url, but this can be overridden. For private repos
-SSH is used.</p>
+<p>Add a users fork as a remote using the specified name or the user&#8217;s login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub fetch [--ssh|--http|--git] &lt;user&gt; [&lt;refspec&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>If you don&#8217;t want to add a user&#8217;s fork as a remote, but to want to fetch some
+refs from it, you can use the <strong class="command">fetch</strong> command. You can tell it which
+refs to fetch, and if you don&#8217;t give a refspec, it will fetch all branches.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub browse [--parent] [&lt;repo&gt;] [&lt;section&gt;]</tt></dt>
@@ -256,6 +286,47 @@ argument, the current repository will be updated. You can also specify
 <p>When you use the <em class="xref std std-option">--goblet</em> option, the resulting mirror will be
 configured for the goblet web interface, using description, owner and clone
 information from GitHub.</p>
+</div>
+<div class="section" id="administering-repositories">
+<h2>Administering repositories<a class="headerlink" href="#administering-repositories" title="Permalink to this headline">¶</a></h2>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub collaborators [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List all people with push access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub add-collaborator &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Grant people push access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub remove-collaborator &lt;user&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Revoke access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub deploy-keys [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>List all deploy keys for this repository</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub add-deploy-key [--read-only] &lt;key&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Add a deploy key to a repository, which can be used to fetch and push data via
+ssh. Read-only keys acan only fetch.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub remove-deploy-key &lt;key&gt;...</tt></dt>
+<dd></dd></dl>
+
+<p>Remove a deploy key by id. Use the <strong class="command">git hub deploy-keys</strong> command to
+see the id&#8217;s of your deploy keys.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub hooks</tt></dt>
@@ -304,7 +375,7 @@ not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub pull-request [--issue &lt;issue&gt;] [&lt;yours:theirs&gt;]</tt></dt>
+<tt class="descname">git hub pull-request [--issue=&lt;issue&gt;] [--yes] [&lt;yours:theirs&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Files a pull request to merge branch &#8220;yours&#8221; (default: the current branch) into
@@ -328,7 +399,7 @@ your history linear, this one is for you. It applies a pull request using
 <h2>Gists<a class="headerlink" href="#gists" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub gist [-d &lt;description&gt;] &lt;file&gt;...</tt></dt>
+<tt class="descname">git hub gist [--description=&lt;description&gt;] &lt;file&gt;...</tt></dt>
 <dd></dd></dl>
 
 <p>Creates a gist (with optional description) from the named files. If you specify
@@ -345,7 +416,7 @@ command output to GitHub, for example: <strong class="command">fortune | git hub
 <h2>Other<a class="headerlink" href="#other" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub calendar [&lt;user&gt;...]</tt></dt>
+<tt class="descname">git hub calendar [&lt;user&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Show a timeline of a your activity, or that of another user. The timeline will
@@ -360,6 +431,13 @@ F <span style="color: #3a3a3a">■ </span><span style="color: #008700">■ </spa
   <span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f8700">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #3a3a3a">■ </span><span style="color: #5f875f">■ </span><span style="color: #3a3a3a">■ </span>
 </pre></div>
 </div>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub check-pages</tt></dt>
+<dd></dd></dl>
+
+<p>Check your repository for common misconfigurations in the usage of GitHub
+pages, including DNS checks and content checks.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub render [--save=&lt;outfile&gt;] &lt;file&gt;</tt></dt>
@@ -377,6 +455,13 @@ environments. This command will let you quickly grab them and add them to your
 <tt class="file docutils literal"><span class="pre">.gitignore</span></tt>. For example: <strong class="command">git hub ignore Python C</strong></p>
 <dl class="describe">
 <dt>
+<tt class="descname">git hub ip-addresses [--git] [--hooks] [--importer] [--pages]</tt></dt>
+<dd></dd></dl>
+
+<p>This tells you which ip addresses belong to certain github.com services. Very
+useful to keep firewalls and access control lists up-to-date.</p>
+<dl class="describe">
+<dt>
 <tt class="descname">git hub network [&lt;level&gt;]</tt></dt>
 <dd></dd></dl>
 
@@ -387,6 +472,18 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
 </div>
 <p>Here&#8217;s mine:</p>
 <img alt="_images/network.png" src="_images/network.png" />
+<dl class="describe">
+<dt>
+<tt class="descname">git hub say [&lt;msg&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>This lets the octocat speak to you.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub setup-goblet</tt></dt>
+<dd></dd></dl>
+
+<p>Set up a configuration for the goblet web interface based on data in GitHub.</p>
 </div>
 </div>
 
@@ -401,6 +498,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
 <li><a class="reference internal" href="#">Git spindle for GitHub</a><ul>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
 <li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
+<li><a class="reference internal" href="#administering-repositories">Administering repositories</a></li>
 <li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
 <li><a class="reference internal" href="#gists">Gists</a></li>
 <li><a class="reference internal" href="#other">Other</a></li>
@@ -450,7 +548,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 2.5 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.0 documentation</a> &raquo;</li>
  
       </ul>
     </div>

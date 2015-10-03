@@ -29,7 +29,7 @@ GitLab thinks about who you are. For example::
   Bio       Python developer, linux admin, solving scalability issues at booking.com
   RSA key   ...N0nFw3oW5l (Dennis Kaarsemaker (git))
 
-.. describe:: git lab whois
+.. describe:: git lab whois <user>...
 
 If you want to see some information about other users, use :command:`git lab whois`::
 
@@ -59,6 +59,14 @@ other users.
 Displays a log of actions done to a repository, such as pushes and issue
 comments.
 
+.. describe:: git lab add-account [--host=<host>] <alias>
+
+:command:`git lab` supports multiple accounts. To add a new account, use the
+:command:`add-account` command. If the account lives on a Gitlab CE or EE
+instance, you can specify its hostname. To change the hostname of any account,
+including the default one, you can use the :command:`config` command as
+follows: :command:`git lab config host https://gitlab.example.com`.
+
 .. describe:: git lab config [--unset] <key> [<value>]
 
 Set, get or unset a configuration variable in :file:`~/.gitspindle`. Similar to
@@ -68,7 +76,7 @@ is hardcoded to be the current account.
 Interacting with repositories
 -----------------------------
 
-.. describe:: git lab create [--private|--internal] [-d <description>]
+.. describe:: git lab create [--private|--internal] [--description=<description>]
 
 Create a (possibly private/internal) repository on GitLab for your current
 repository. An optional description can be given too. After running this
@@ -93,13 +101,13 @@ but this can be overridden. For non-public repos SSH is used.
 This command accepts all options git clone accepts and will forward those to
 :command:`git clone`.
 
-.. describe:: git lab cat <file>
+.. describe:: git lab cat <file>...
 
 Display the contents of a file on GitLab. File can start with repository names
 and refs. For example: `master:bin/git-lab`, `git-spindle:master:bin/git-lab`
 or `seveas/git-spindle:master:bin/git-lab`.
 
-.. describe:: git lab ls <dir>...
+.. describe:: git lab ls [<dir>...]
 
 Display the contents of a directory on GitLab. Directory can start with
 repository names and refs. For example: `master:bin/git-lab`,
@@ -114,11 +122,17 @@ with set-origin, the "origin" and "upstream" remotes will be set up too.
 Calling fork in a previously cloned-but-not-forked repository will create a
 fork of that repository and set up your remotes.
 
-.. describe:: git lab add-remote [--ssh|--http] <user>...
+.. describe:: git lab add-remote [--ssh|--http] <user> [<name>]
 
-Add a users fork as a remote using the user's login as name for the remote.
-Defaults to adding an http url, but this can be overridden. For non-public repos
-SSH is used.
+Add a users fork as a remote using the specified name or the user's login as
+name for the remote. Defaults to adding an http url, but this can be
+overridden. For private repos SSH is used.
+
+.. describe:: git lab fetch [--ssh|--http] <user> [<refspec>]
+
+If you don't want to add a user's fork as a remote, but to want to fetch some
+refs from it, you can use the :command:`fetch` command. You can tell it which
+refs to fetch, and if you don't give a refspec, it will fetch all branches.
 
 .. describe:: git lab browse [--parent] [<repo>] [<section>]
 
@@ -137,6 +151,34 @@ When you use the :option:`--goblet` option, the resulting mirror will be
 configured for the goblet web interface, using description, owner and clone
 information from GitLab.
 
+Administering repositories
+--------------------------
+.. describe:: git lab members [<repo>]
+
+List all people with push access to this repository.
+
+.. describe:: git lab add-member [--access-level=guest|reporter|developer|master|owner] <user>...
+
+Grant people access to this repository.
+
+.. describe:: git lab remove-member <user>...
+
+Revoke access to this repository.
+
+.. describe:: git lab protected
+
+List all protected branches. Protected branches cannot be force-pushed or
+deleted, and can only be pushed to by people with the master or owner access
+level.
+
+.. describe:: git lab protect <branch>
+
+Mark a branch as protected.
+
+.. describe:: git lab unprotect <branch>
+
+Remove a branch's protection.
+
 Issues and pull requests
 ------------------------
 
@@ -152,7 +194,7 @@ can use the :option:`--parent` option to use the parent repository. If you do
 not specify an issue number, you will be prompted for a message that will be
 used to create a new issue.
 
-.. describe:: git lab merge-request <yours:theirs>
+.. describe:: git lab merge-request [--yes] [<yours:theirs>]
 
 Files a pull request to merge branch "yours" (default: the current branch) into
 the upstream branch "theirs" (default: master). Like for a commit message, your
@@ -171,3 +213,10 @@ your history linear, this one is for you. It applies a merge request using
 :command:`git cherry-pick` instead of merging.
 
 .. _`filters`: https://github.com/gitlabhq/gitlabhq/blob/master/doc/api/issues.md
+
+Other
+-----
+.. describe:: git lab calendar [<user>]
+
+Show a timeline of a your activity, or that of another user. The timeline will
+look like that on your GitLab profile page.
