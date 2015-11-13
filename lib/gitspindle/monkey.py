@@ -1,11 +1,13 @@
-# Monkeypatch github3.gists.Gist to behave more like a repo
-
+# Set the spindle attribute
 import github3.gists
 import github3.repos
-
 github3.gists.Gist.spindle = 'github'
 github3.repos.Repository.spindle = 'github'
+import gitspindle.glapi as glapi
+glapi.Project.spindle = 'gitlab'
+glapi.UserProject.spindle = 'gitlab'
 
+# Monkeypatch github3.gists.Gist to behave more like a repo
 github3.gists.Gist.ssh_url = property(lambda self: 'git@gist.github.com:/%s.git' % self.id)
 github3.gists.Gist.clone_url = property(lambda self: self.git_pull_url)
 github3.gists.Gist.git_url = property(lambda self: 'git://gist.github.com/%s.git' % self.id)
@@ -39,10 +41,74 @@ def _gist_contents(self, path, ref):
             return Content(f)
 github3.gists.Gist.contents = _gist_contents
 
-import gitspindle.glapi as glapi
-glapi.Project.spindle = 'gitlab'
-glapi.UserProject.spindle = 'gitlab'
+# Monkeypatch github3.session.request to warn when approaching rate limits
+from github3.session import GitHubSession
 
+from gitspindle.ansi import wrap, fgcolor, attr
+import time
+warned = False
+def request(self, *args, **kwargs):
+    global warned
+    r = self.orig_request(*args, **kwargs)
+    # Warn when approaching the rate limit
+    limit = int(r.headers.get('x-ratelimit-limit', 0))
+    remaining = int(r.headers.get('x-ratelimit-remaining', 0))
+    reset = int(r.headers.get('x-ratelimit-reset', 0))
+    if limit and (remaining < 100) and not warned:
+        msg = "You are approaching the API rate limit. Only %d requests remain until %s" % (remaining, time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(reset)))
+        print(wrap(msg, fgcolor.red, attr.bright))
+        warned = True
+    return r
+GitHubSession.orig_request = GitHubSession.request
+GitHubSession.request = request
+
+# Add missing protect_branch / unprotect_branch methods
+import json
+from github3.decorators import requires_auth
+def branch(self, name):
+    url = self._build_url('branches', name, base_url=self._api)
+    old_accept = self._session.headers.pop('Accept')
+    self._session.headers['Accept'] = 'application/vnd.github.loki-preview+json'
+    try:
+        branch = github3.repos.branch.Branch(self._json(self._get(url), 200))
+        branch._session = self._session
+        return branch
+    finally:
+        self._session.headers['Accept'] = old_accept
+
+from github3.structs import GitHubIterator
+def iter_branches(self, number=-1, etag=None, protected=False):
+    url = self._build_url('branches', base_url=self._api)
+    headers = {'Accept': 'application/vnd.github.loki-preview+json'}
+    return GitHubIterator(int(number), url, github3.repos.branch.Branch, self, etag=etag, headers=headers, params={'protected': int(protected)})
+
+@requires_auth
+def protect(self, contexts=[], enforcement_level=None):
+    data = {'enabled': True}
+    if contexts or enforcement_level:
+        data['required_status_checks'] = {'contexts': contexts, 'enforcement_level': enforcement_level or 'everyone'}
+    old_accept = self._session.headers.pop('Accept')
+    self._session.headers['Accept'] = 'application/vnd.github.loki-preview+json'
+    try:
+        return self._patch(self.links['self'], data=json.dumps({'protection': data}))
+    finally:
+        self._session.headers['Accept'] = old_accept
+
+@requires_auth
+def unprotect(self):
+    old_accept = self._session.headers.pop('Accept')
+    self._session.headers['Accept'] = 'application/vnd.github.loki-preview'
+    try:
+        return self._patch(self.links['self'], data=json.dumps({'protection': {'enabled': False}}))
+    finally:
+        self._session.headers['Accept'] = old_accept
+
+github3.repos.repo.Repository.branch = branch
+github3.repos.repo.Repository.iter_branches = iter_branches
+github3.repos.branch.Branch.protect = protect
+github3.repos.branch.Branch.unprotect = unprotect
+
+# Monkeypatch docopt to support our git-clone-options-hack
 import docopt
 known_options = {
     'clone': (
@@ -50,7 +116,7 @@ known_options = {
         '--mirror', '--reference=<repository>', '--progress', '-o <oname>', '--origin=<oname>',
         '-b <name>', '--branch=<name>', '-u <upload-pack>', '--upload-pack=<upload-pack>',
         '--template=<template-directory>', '-c <key-value>', '--config=<key-value>',
-        '--depth=<depth>', '--single-branch', '--no-single-branch', '--recursive, --recurse-submodules',
+        '--depth=<depth>', '--single-branch', '--no-single-branch', '--recursive', '--recurse-submodules',
         '--separate-git-dir=<git_dir>'),
 }
 

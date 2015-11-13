@@ -775,9 +775,11 @@ class GitHub(GitSpindle):
 
     @command
     def log(self, opts):
-        """[--type=<type>] [<what>]
+        """[--type=<type>] [--count=<count>] [--verbose] [<what>]
            Display github log for yourself or other users. Or for an organisation or a repo"""
         logtype = 'user'
+        count = int(opts['--count'] or 30)
+        verbose = opts['--verbose']
         if not opts['<what>']:
             what = self.me
         else:
@@ -800,14 +802,14 @@ class GitHub(GitSpindle):
                     err("User %s does not exist" % opts['<what>'])
 
         if not opts['--type']:
-            events = [x for x in what.iter_events(number=30)]
+            events = [x for x in what.iter_events(number=count)]
         else:
             events = []
             etype = opts['--type'].lower() + 'event'
-            for event in what.iter_events(number=300):
+            for event in what.iter_events(number=-1):
                 if event.type.lower() == etype:
                     events.append(event)
-                    if len(events) == 30:
+                    if len(events) == count:
                         break
 
         now = datetime.datetime.now()
@@ -816,10 +818,13 @@ class GitHub(GitSpindle):
             if ts.year == now.year:
                 if (ts.month, ts.day) == (now.month, now.day):
                     ts = wrap(ts.strftime("%H:%M"), attr.faint)
+                    tss = '     '
                 else:
                     ts = wrap(ts.strftime("%m/%d %H:%M"), attr.faint)
+                    tss = '           '
             else:
                 ts = wrap(ts.strftime("%Y/%m/%d %H:%M"), attr.faint)
+                tss = '                '
             repo = '/'.join(event.repo)
             repo_ = ' (%s)' % repo
             if logtype != 'user':
@@ -849,8 +854,12 @@ class GitHub(GitSpindle):
                 print("%s updated %d wikipage%s%s" % (ts, pages, {1:''}.get(pages, 's'), repo_))
             elif event.type == 'IssueCommentEvent':
                 print("%s commented on issue #%s%s" % (ts, event.payload['issue'].number, repo_))
+                if verbose:
+                    print("%s %s %s" % (tss, event.payload['issue'].title, event.payload['comment']._json_data['html_url']))
             elif event.type == 'IssuesEvent':
                 print("%s %s issue #%s%s" % (ts, event.payload['action'], event.payload['issue'].number, repo_))
+                if verbose:
+                    print("%s %s %s" % (tss, event.payload['issue'].title, event.payload['issue'].html_url))
             elif event.type == 'MemberEvent':
                 print("%s %s %s to %s" % (ts, event.payload['action'], event.payload['member'].login, repo))
             elif event.type == 'PublicEvent':
@@ -859,6 +868,9 @@ class GitHub(GitSpindle):
                 print("%s commented on a pull request for commit %s%s" % (ts, event.payload['comment'].commit_id[:7], repo_))
             elif event.type == 'PullRequestEvent':
                 print("%s %s pull_request #%s%s" % (ts, event.payload['action'], event.payload['pull_request'].number, repo_))
+                if verbose:
+                    print("%s %s %s" % (tss, event.payload['pull_request'].title, event.payload['pull_request'].html_url))
+
             elif event.type == 'PushEvent':
                 # Old push events have shas and not commits
                 if 'commits' in event.payload:
@@ -866,6 +878,9 @@ class GitHub(GitSpindle):
                 else:
                     commits = len(event.payload['shas'])
                 print("%s pushed %d commits to %s%s" % (ts, commits, event.payload['ref'][11:], repo_))
+                if verbose:
+                    shas = '%s...%s' % (event.payload['before'][:8], event.payload['head'][:8])
+                    print("%s %s/%s/compare/%s" % (tss, self.me.html_url, event.repo[1], shas))
             elif event.type == 'ReleaseEvent':
                 print("%s released %s" % (ts, event.payload['name']))
             elif event.type == 'StatusEvent':
@@ -1018,6 +1033,24 @@ class GitHub(GitSpindle):
         print("\n".join(graph))
 
     @command
+    def protect(self, opts):
+        """[--enforcement-level=<level>] [--contexts=<contexts>] <branch>
+           Protect a branch against deletions, force-pushes and failed status checks"""
+        repo = self.repository(opts)
+        repo.branch(opts['<branch>']).protect(enforcement_level=opts['--enforcement-level'], contexts=(opts['--contexts'] or '').split(','))
+
+    @command
+    def protected(self, opts):
+        """\nList active branch protections"""
+        repo = self.repository(opts)
+        for branch in repo.iter_branches(protected=True):
+            data = branch._json_data['protection']
+            msg = branch.name
+            if data['required_status_checks']['contexts'] and data['required_status_checks']['enforcement_level'] != 'off':
+                msg += ' (%s must pass for %s)' % (','.join(data['required_status_checks']['contexts']), data['required_status_checks']['enforcement_level'])
+            print(msg)
+
+    @command
     def public_keys(self, opts):
         """[<user>]
            Lists all keys for a user"""
@@ -1131,6 +1164,17 @@ class GitHub(GitSpindle):
         except:
             filename = self.backup_message(title, body, 'pull-request-message-')
             err("Failed to create a pull request, the pull request text has been saved in %s" % filename)
+
+    @command
+    def readme(self, opts):
+        """[<repo>]
+           Get the README for a repository"""
+        repo = self.repository(opts)
+        readme = repo.readme()
+        if readme:
+            os.write(sys.stdout.fileno(), readme.decoded)
+        else:
+            err("No readme found")
 
     @command
     def remove_collaborator(self, opts):
@@ -1325,6 +1369,13 @@ class GitHub(GitSpindle):
             color = {'good': fgcolor.green, 'minor': fgcolor.yellow, 'major': fgcolor.red}[message['status']]
             ts = datetime.datetime(ts.tm_year, ts.tm_mon, ts.tm_mday, ts.tm_hour, ts.tm_min, ts.tm_sec) - datetime.timedelta(0,offset)
             print('%s %s %s' % (wrap(ts.strftime('%Y-%m-%d %H:%M'), attr.faint), wrap("%-5s" % message['status'], color), message['body']))
+
+    @command
+    def unprotect(self, opts):
+        """ <branch>
+           Remove branch protections from a branch"""
+        repo = self.repository(opts)
+        repo.branch(opts['<branch>']).unprotect()
 
     @command
     def whoami(self, opts):
