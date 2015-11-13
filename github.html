@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for GitHub &mdash; git-spindle 3.0.2 documentation</title>
+    <title>Git spindle for GitHub &mdash; git-spindle 3.1 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.0.2',
+        VERSION:     '3.1',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 3.0.2 documentation" href="index.html" />
+    <link rel="top" title="git-spindle 3.1 documentation" href="index.html" />
     <link rel="next" title="Git spindle for GitLab" href="gitlab.html" />
     <link rel="prev" title="Git subcommands for interacting with central services" href="index.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -47,7 +47,7 @@
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 3.0.2 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.1 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -148,14 +148,16 @@ to exclude forked repositories.</p>
 <tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>.</p>
 <dl class="describe">
 <dt>
-<tt class="descname">git hub log [--type=&lt;type&gt;] [&lt;what&gt;]</tt></dt>
+<tt class="descname">git hub log [--type=&lt;type&gt;] [--count=&lt;count&gt;] [--verbose] [&lt;what&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Displays a log of your GitHub actions, such as pushes and issue comments. You
 can also specify a user or repository and the relevant log will be shown
 instead of yours.</p>
 <p>If you are only interested in events of a specific type, you can filter for it,
-e.g. <em class="xref std std-option">--type=push</em>.</p>
+e.g. <em class="xref std std-option">--type=push</em>. You can also get more (or less) than the default 30
+items in the log by specifying a count. Finally, <em class="xref std std-option">--verbose</em> will give
+slightly more verbose output for some log items.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub add-account [--host=&lt;host&gt;] &lt;alias&gt;</tt></dt>
@@ -236,6 +238,12 @@ repository names and refs. For example: <cite>master:bin/git-hub</cite>,
 <cite>git-spindle:master:bin/git-hub</cite> or <cite>seveas/git-spindle:master:bin/git-hub</cite>.</p>
 <dl class="describe">
 <dt>
+<tt class="descname">git hub readme [&lt;repo&gt;]</tt></dt>
+<dd></dd></dl>
+
+<p>Download and display a repository&#8217;s README file, whatever its actual name is.</p>
+<dl class="describe">
+<dt>
 <tt class="descname">git hub fork [--ssh|--http|--git] [&lt;repo&gt;]</tt></dt>
 <dd></dd></dl>
 
@@ -307,6 +315,28 @@ information from GitHub.</p>
 <dd></dd></dl>
 
 <p>Revoke access to this repository.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub protected</tt></dt>
+<dd></dd></dl>
+
+<p>List all protected branches. Protected branches cannot be force-pushed or
+deleted, and can potentially have required status checks.</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub protect [--enforcement-level=&lt;level&gt;] [--contexts=&lt;contexts&gt;] &lt;branch&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Protect a branch against force-pushes and deletion. Optionally require status
+checks to succeed by specifying their context (e.g.
+continuous-integration/travis-ci) and for whom this is required (everyone or
+non_admins).</p>
+<dl class="describe">
+<dt>
+<tt class="descname">git hub unprotect &lt;branch&gt;</tt></dt>
+<dd></dd></dl>
+
+<p>Remove a branch&#8217;s protection.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git hub deploy-keys [&lt;repo&gt;]</tt></dt>
@@ -548,7 +578,7 @@ who&#8217;s repositories you&#8217;ve forked. For example:</p>
         <li class="right" >
           <a href="index.html" title="Git subcommands for interacting with central services"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 3.0.2 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.1 documentation</a> &raquo;</li>
  
       </ul>
     </div>

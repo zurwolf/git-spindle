@@ -74,14 +74,16 @@ Add SSH public keys (default: :file:`~/.ssh/*.pub`) to your account.
 Display all public keys of a user, in a format that can be added to
 :file:`~/.authorized_keys`.
 
-.. describe:: git hub log [--type=<type>] [<what>]
+.. describe:: git hub log [--type=<type>] [--count=<count>] [--verbose] [<what>]
 
 Displays a log of your GitHub actions, such as pushes and issue comments. You
 can also specify a user or repository and the relevant log will be shown
 instead of yours.
 
 If you are only interested in events of a specific type, you can filter for it,
-e.g. :option:`--type=push`.
+e.g. :option:`--type=push`. You can also get more (or less) than the default 30
+items in the log by specifying a count. Finally, :option:`--verbose` will give
+slightly more verbose output for some log items.
 
 .. describe:: git hub add-account [--host=<host>] <alias>
 
@@ -151,6 +153,10 @@ Display the contents of a directory on GitHub. Directory can start with
 repository names and refs. For example: `master:bin/git-hub`,
 `git-spindle:master:bin/git-hub` or `seveas/git-spindle:master:bin/git-hub`.
 
+.. describe:: git hub readme [<repo>]
+
+Download and display a repository's README file, whatever its actual name is.
+
 .. describe:: git hub fork [--ssh|--http|--git] [<repo>]
 
 Fork another person's git repository on GitHub and clone that repository
@@ -206,6 +212,22 @@ Grant people push access to this repository.
 .. describe:: git hub remove-collaborator <user>...
 
 Revoke access to this repository.
+
+.. describe:: git hub protected
+
+List all protected branches. Protected branches cannot be force-pushed or
+deleted, and can potentially have required status checks.
+
+.. describe:: git hub protect [--enforcement-level=<level>] [--contexts=<contexts>] <branch>
+
+Protect a branch against force-pushes and deletion. Optionally require status
+checks to succeed by specifying their context (e.g.
+continuous-integration/travis-ci) and for whom this is required (everyone or
+non_admins).
+
+.. describe:: git hub unprotect <branch>
+
+Remove a branch's protection.
 
 .. describe:: git hub deploy-keys [<repo>]
 
