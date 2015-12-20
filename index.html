@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git subcommands for interacting with central services &mdash; git-spindle 3.1 documentation</title>
+    <title>Git subcommands for interacting with central services &mdash; git-spindle 3.2 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.1',
+        VERSION:     '3.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,7 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 3.1 documentation" href="#" />
+    <link rel="top" title="git-spindle 3.2 documentation" href="#" />
     <link rel="next" title="Git spindle for GitHub" href="github.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
   </head>
@@ -43,7 +43,7 @@
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              accesskey="N">next</a> &nbsp; &nbsp;</li>
-    <li><a href="#">git-spindle 3.1 documentation</a> &raquo;</li>
+    <li><a href="#">git-spindle 3.2 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -67,15 +67,27 @@ easier.</p>
 </div>
 <div class="section" id="install-info">
 <h2>Install info<a class="headerlink" href="#install-info" title="Permalink to this headline">¶</a></h2>
-<p>To install the latest released version:</p>
-<div class="highlight-python"><div class="highlight"><pre>pip install git-spindle
+<p>To install the latest released version on Ubuntu:</p>
+<div class="highlight-python"><div class="highlight"><pre>sudo add-apt-repository ppa:dennis/devtools
+sudo apt-get install git-spindle
 </pre></div>
 </div>
-<p>If you use windows, you&#8217;ll want to install git and pip via msys2. Download
-<a class="reference external" href="http://msys2.github.io/">msys2</a> and use pacman to install pip and git:</p>
-<div class="highlight-python"><div class="highlight"><pre>pacman -Syu
-pacman -S git
-pacman -S mingw-w64-i686-python2-pip
+<p>To install the latest released version on Windows:</p>
+<ul>
+<li><p class="first">Install git from <a class="reference external" href="http://git-for-windows.github.io/">http://git-for-windows.github.io/</a></p>
+</li>
+<li><p class="first">Install python 3.5 or newer from <a class="reference external" href="https://www.python.org/downloads/">https://www.python.org/downloads/</a></p>
+</li>
+<li><p class="first">Run the following 2 commands in a command prompt:</p>
+<div class="highlight-python"><div class="highlight"><pre>py -mensurepip
+py -mpip install git-spindle
+</pre></div>
+</div>
+</li>
+</ul>
+<p>To install the latest released version on other systems, assuming python and
+pip are installed:</p>
+<div class="highlight-python"><div class="highlight"><pre>pip install git-spindle
 </pre></div>
 </div>
 </div>
@@ -87,7 +99,6 @@ pacman -S mingw-w64-i686-python2-pip
 <li class="toctree-l1"><a class="reference internal" href="github.html">Git spindle for GitHub</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gitlab.html">Git spindle for GitLab</a></li>
 <li class="toctree-l1"><a class="reference internal" href="bitbucket.html">Git spindle for BitBucket</a></li>
-<li class="toctree-l1"><a class="reference internal" href="accounts.html">Using multiple accounts</a></li>
 </ul>
 </div>
 </div>
@@ -141,7 +152,7 @@ pacman -S mingw-w64-i686-python2-pip
         <li class="right" >
           <a href="github.html" title="Git spindle for GitHub"
              >next</a> &nbsp; &nbsp;</li>
-    <li><a href="#">git-spindle 3.1 documentation</a> &raquo;</li>
+    <li><a href="#">git-spindle 3.2 documentation</a> &raquo;</li>
  
       </ul>
     </div>

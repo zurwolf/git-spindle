@@ -8,7 +8,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title>Git spindle for BitBucket &mdash; git-spindle 3.1 documentation</title>
+    <title>Git spindle for BitBucket &mdash; git-spindle 3.2 documentation</title>
     
     <link rel="stylesheet" href="_static/cloud.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
@@ -17,7 +17,7 @@
     <script type="text/javascript">
       var DOCUMENTATION_OPTIONS = {
         URL_ROOT:    './',
-        VERSION:     '3.1',
+        VERSION:     '3.2',
         COLLAPSE_INDEX: false,
         FILE_SUFFIX: '.html',
         HAS_SOURCE:  true
@@ -27,8 +27,7 @@
     <script type="text/javascript" src="_static/underscore.js"></script>
     <script type="text/javascript" src="_static/doctools.js"></script>
     <script type="text/javascript" src="_static/cloud.js"></script>
-    <link rel="top" title="git-spindle 3.1 documentation" href="index.html" />
-    <link rel="next" title="Using multiple accounts" href="accounts.html" />
+    <link rel="top" title="git-spindle 3.2 documentation" href="index.html" />
     <link rel="prev" title="Git spindle for GitLab" href="gitlab.html" /> 
         <meta name="viewport" content="width=device-width, initial-scale=1">
   </head>
@@ -42,12 +41,9 @@
           <a href="genindex.html" title="General Index"
              accesskey="I">index</a></li>
         <li class="right" >
-          <a href="accounts.html" title="Using multiple accounts"
-             accesskey="N">next</a> &nbsp; &nbsp;</li>
-        <li class="right" >
           <a href="gitlab.html" title="Git spindle for GitLab"
              accesskey="P">previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 3.1 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.2 documentation</a> &raquo;</li>
  
       </ul>
     </div>
@@ -116,13 +112,21 @@ to exclude forked repositories.</p>
 
 <p>Display all public keys of a user, in a format that can be added to
 <tt class="file docutils literal"><span class="pre">~/.authorized_keys</span></tt>.</p>
+</div>
+<div class="section" id="using-multiple-accounts">
+<h2>Using multiple accounts<a class="headerlink" href="#using-multiple-accounts" title="Permalink to this headline">¶</a></h2>
+<p><strong class="command">git bb</strong> supports using more than one account. To use a non-default,
+you have to tell <strong class="command">git bb</strong> which account to use using
+<em class="xref std std-option">--account</em>:</p>
+<div class="highlight-python"><div class="highlight"><pre>$ git bb --account test-account clone seveas/whelk
+</pre></div>
+</div>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb add-account [--host=&lt;host&gt;] &lt;alias&gt;</tt></dt>
+<tt class="descname">git bb add-account &lt;alias&gt;</tt></dt>
 <dd></dd></dl>
 
-<p><strong class="command">git bb</strong> supports multiple accounts. To add a new account, use the
-<strong class="command">add-account</strong> command.</p>
+<p>To add a new account, use the <strong class="command">add-account</strong> command.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git bb config [--unset] &lt;key&gt; [&lt;value&gt;]</tt></dt>
@@ -136,13 +140,15 @@ is hardcoded to be the current account.</p>
 <h2>Interacting with repositories<a class="headerlink" href="#interacting-with-repositories" title="Permalink to this headline">¶</a></h2>
 <dl class="describe">
 <dt>
-<tt class="descname">git bb create [--private] [--description=&lt;description&gt;]</tt></dt>
+<tt class="descname">git bb create [--private] [--team=&lt;team&gt;] [--description=&lt;description&gt;]</tt></dt>
 <dd></dd></dl>
 
 <p>Create a (possibly private) repository on BitBucket for your current repository. An
 optional description can be given too. After running this command, a repository
 will be created on BitBucket and your local repository will have BitBucket as remote
 &#8220;origin&#8221;, so <strong class="command">git push origin master</strong> will work.</p>
+<p>By default the repository is created under your account, but you can specify a
+team to create the repository for.</p>
 <dl class="describe">
 <dt>
 <tt class="descname">git bb set-origin [--ssh|--http]</tt></dt>
@@ -349,6 +355,7 @@ command output to BitBucket, for example: <strong class="command">fortune | git 
     <ul>
 <li><a class="reference internal" href="#">Git spindle for BitBucket</a><ul>
 <li><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li><a class="reference internal" href="#using-multiple-accounts">Using multiple accounts</a></li>
 <li><a class="reference internal" href="#interacting-with-repositories">Interacting with repositories</a></li>
 <li><a class="reference internal" href="#administering-repositories">Administering repositories</a></li>
 <li><a class="reference internal" href="#issues-and-pull-requests">Issues and pull requests</a></li>
@@ -362,11 +369,6 @@ command output to BitBucket, for example: <strong class="command">fortune | git 
     <h4>Previous page</h4>
     <p class="topless"><a href="gitlab.html"
                           title="Previous page">&larr; Git spindle for GitLab</a></p>
-  </div>
-  <div class="sphinxnext">
-    <h4>Next page</h4>
-    <p class="topless"><a href="accounts.html"
-                          title="Next page">&rarr; Using multiple accounts</a></p>
   </div>
 <div id="searchbox" style="display: none">
   <h3>Quick search</h3>
@@ -394,12 +396,9 @@ command output to BitBucket, for example: <strong class="command">fortune | git 
           <a href="genindex.html" title="General Index"
              >index</a></li>
         <li class="right" >
-          <a href="accounts.html" title="Using multiple accounts"
-             >next</a> &nbsp; &nbsp;</li>
-        <li class="right" >
           <a href="gitlab.html" title="Git spindle for GitLab"
              >previous</a> &nbsp; &nbsp;</li>
-    <li><a href="index.html">git-spindle 3.1 documentation</a> &raquo;</li>
+    <li><a href="index.html">git-spindle 3.2 documentation</a> &raquo;</li>
  
       </ul>
     </div>
