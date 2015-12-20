@@ -295,9 +295,12 @@ class GitHub(GitSpindle):
         # Print commits
         days = 'SMTWTFS'
         commits.sort()
-        p5  = commits[int(round(len(commits) * 0.95))]
-        p15 = commits[int(round(len(commits) * 0.85))]
-        p35 = commits[int(round(len(commits) * 0.65))]
+        if len(commits) < 2:
+            p5 = p15 = p35 = 0
+        else:
+            p5  = commits[int(round(len(commits) * 0.95))]
+            p15 = commits[int(round(len(commits) * 0.85))]
+            p35 = commits[int(round(len(commits) * 0.65))]
         blob1 = b'\xe2\x96\xa0'.decode('utf-8')
         blob2 = b'\xe2\x97\xbc'.decode('utf-8')
         for rnum, row in enumerate(rows):
@@ -441,6 +444,12 @@ class GitHub(GitSpindle):
                             "https://help.github.com/articles/using-jekyll-with-pages/#turning-jekyll-off")
                 break
 
+        # Do we have unverified emails
+        if repo.owner.login == self.me.login:
+            for mail in self.gh.iter_emails():
+                if not mail['verified']:
+                    error("Unverified %s email address: %s" % (mail['primary'] and 'primary' or 'secondary', mail['email']))
+
         # Do we have a custom CNAME. Check DNS (Use meta api for A records)
         for file in files:
             if file.lower() == 'cname':
@@ -492,10 +501,11 @@ class GitHub(GitSpindle):
                 break
 
     @command
-    def clone(self, opts):
+    def clone(self, opts, repo=None):
         """[--ssh|--http|--git] [--parent] [git-clone-options] <repo> [<dir>]
            Clone a repository by name"""
-        repo = self.repository(opts)
+        if not repo:
+            repo = self.repository(opts)
         url = self.clone_url(repo, opts)
         args = opts['extra-opts']
         args.append(url)
@@ -507,7 +517,7 @@ class GitHub(GitSpindle):
         self.gitm('clone', *args, redirect=False).returncode
         if repo.fork:
             os.chdir(dir)
-            self.set_origin(opts)
+            self.set_origin(opts, repo=repo)
 
     @command
     def collaborators(self, opts):
@@ -521,18 +531,26 @@ class GitHub(GitSpindle):
 
     @command
     def create(self, opts):
-        """[--private] [--description=<description>]
+        """[--private] [--org=<org>] [--description=<description>]
            Create a repository on github to push to"""
         root = self.gitm('rev-parse', '--show-toplevel').stdout.strip()
         name = os.path.basename(root)
-        if name in [x.name for x in self.gh.iter_repos()]:
+        if opts['--org']:
+            dest = self.gh.organization(opts['--org'])
+            ns = opts['--org']
+        else:
+            dest = self.gh
+            ns = self.my_login
+
+        if name in [x.name for x in dest.iter_repos() if x.owner.login == ns]:
             err("Repository already exists")
-        self.gh.create_repo(name=name, description=opts['--description'] or "", private=opts['--private'])
+        repo = dest.create_repo(name=name, description=opts['--description'] or "", private=opts['--private'])
+
         if 'origin' in self.remotes():
             print("Remote 'origin' already exists, adding the GitHub repository as 'github'")
-            self.set_origin(opts, 'github')
+            self.set_origin(opts, repo=repo, remote='github')
         else:
-            self.set_origin(opts)
+            self.set_origin(opts, repo=repo)
 
     @command
     def create_token(self, opts):
@@ -637,15 +655,10 @@ class GitHub(GitSpindle):
                 err("Repository already exists")
 
         my_clone = repo.create_fork()
-        if isinstance(repo, github3.gists.Gist):
-            opts['<repo>'] = 'gist/%s' % my_clone.name
-        else:
-            opts['<repo>'] = my_clone.name
-
         if do_clone:
-            self.clone(opts)
+            self.clone(opts, repo=my_clone)
         else:
-            self.set_origin(opts)
+            self.set_origin(opts, repo=my_clone)
 
     @command
     @wants_parent
@@ -1240,10 +1253,10 @@ class GitHub(GitSpindle):
         """[--no-forks] [<user>]
            List all repos of a user, by default yours"""
         if opts['<user>']:
-            repos = list(self.gh.iter_user_repos(opts['<user>'][0], type='all'))
+            repos = list(self.gh.iter_user_repos(opts['<user>'][0]))
         else:
             repos = list(self.gh.iter_repos(type='all'))
-            opts['<user>'] = [self.gh.user().login]
+            opts['<user>'] = [self.my_login]
         if not repos:
             return
         maxlen = max([len(x.name) for x in repos])
@@ -1299,16 +1312,17 @@ class GitHub(GitSpindle):
             os.chmod(goblet_dir, 0o777)
 
     @command
-    def set_origin(self, opts, remote='origin'):
+    def set_origin(self, opts, repo=None, remote='origin'):
         """[--ssh|--http|--git]
            Set the remote 'origin' to github.
            If this is a fork, set the remote 'upstream' to the parent"""
-        repo = self.repository(opts)
-        # Is this mine? No? Do I have a clone?
-        if repo.owner.login != self.my_login:
-            my_repo = self.gh.repository(self.me, repo.name)
-            if my_repo:
-                repo = my_repo
+        if not repo:
+            repo = self.repository(opts)
+            # Is this mine? No? Do I have a clone?
+            if repo.owner.login != self.my_login:
+                my_repo = self.gh.repository(self.me, repo.name)
+                if my_repo:
+                    repo = my_repo
 
         url = self.clone_url(repo, opts)
         if self.git('config', 'remote.%s.url' % remote).stdout.strip() != url:
@@ -1392,10 +1406,24 @@ class GitHub(GitSpindle):
             if not user:
                 print("No such user: %s" % user_)
                 continue
+            emails = {}
+            if user.login == self.my_login:
+                for email in self.gh.iter_emails():
+                    emails[email['email']] = email
             print(wrap(user.name or user.login, attr.bright, attr.underline))
             print('Profile   %s' % user.html_url)
             if user.email:
-                print('Email     %s' % user.email)
+                unverified = ''
+                if not emails.get(user.email, {}).get('verified', True):
+                    unverified = ' ' + wrap('(not verified)', fgcolor.red, attr.bright)
+                print('Email     %s%s' % (user.email, unverified))
+                for email in emails:
+                    if email == user.email:
+                        continue
+                    unverified = ''
+                    if not emails[email]['verified']:
+                        unverified = ' ' + wrap('(not verified)', fgcolor.red, attr.bright)
+                    print('          %s%s' % (email, unverified))
             if user.blog:
                 print('Blog      %s' % user.blog)
             if user.location:

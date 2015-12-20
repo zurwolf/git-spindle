@@ -25,6 +25,9 @@ class Bitbucket(object):
     def user(self, username):
         return User(self, username=username)
 
+    def team(self, username):
+        return Team(self, username=username)
+
     def repository(self, owner, slug):
         if isinstance(owner, BBobject):
             owner = owner.username
@@ -108,6 +111,7 @@ class User(BBobject):
         data = {'owner': self.username, 'slug': slug, 'description': description, 'is_private': is_private,
                 'scm': 'git', 'has_issues': has_issues, 'has_wiki': has_wiki}
         repo = self.post(uritemplate.expand(Repository.uri[1], slug=slug, owner=self.username), data=json.dumps(data), headers={'content-type': 'application/json'})
+        repo['is_fork'] = False
         return Repository(self.bb, mode=None, **repo)
 
     def create_key(self, key, label):
@@ -138,6 +142,9 @@ class User(BBobject):
     def emails(self):
         url = uritemplate.expand('https://bitbucket.org/api/1.0/users/{username}/emails', username=self.username)
         return self.get(url)
+
+class Team(User):
+    uri = 'https://bitbucket.org/api/2.0/teams/{username}'
 
 def ssh_fix(url):
     if not url.startswith('ssh://'):

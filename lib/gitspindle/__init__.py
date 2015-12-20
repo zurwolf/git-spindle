@@ -68,6 +68,7 @@ class GitSpindle(object):
         self.accounts = {}
         self.my_login = {}
         self.use_credential_helper = self.git('config', 'credential.helper').stdout.strip() not in ('', 'cache')
+
         self.usage = """%s - %s integration for git
 A full manual can be found on http://seveas.github.com/git-spindle/
 
@@ -81,6 +82,8 @@ Usage:\n""" % (self.prog, self.what)
             name = name.replace('_', '-')
             self.commands[name] = fnc
             doc = [line.strip() for line in fnc.__doc__.splitlines()]
+            if self.__class__.__name__ == 'BitBucket' and name == 'add-account':
+                doc[0] = doc[0].replace('[--host=<host>] ', '')
             if doc[0]:
                 doc[0] = ' ' + doc[0]
             self.usage += '%s:\n  %s %s %s%s\n' % (doc[1], self.prog, '[options]', name, doc[0])
@@ -268,31 +271,39 @@ Options:
     def main(self):
         argv = self.prog.split()[1:] + sys.argv[1:]
         opts = docopt.docopt(self.usage, argv)
-        self.account = opts['--account'] or os.environ.get('GITSPINDLE_ACCOUNT', None)
         self.assume_yes = opts['--yes']
-        if self.account and not self.config('user') and not opts['config']:
-            err("%s does not yet know about %s. Use %s add-account to configure it" % (self.prog, self.account, self.prog))
-        hosts = self.git('config', '--file', self.config_file, '--get-regexp', '%s.*host' % self.spindle).stdout.strip()
+        hosts = self.git('config', '--file', self.config_file, '--get-regexp', '%s\..*\.host' % self.spindle).stdout.strip()
 
         for (account, host) in [x.split() for x in hosts.splitlines()]:
             account = account.split('.')
             if host.startswith(('http://', 'https://')):
                 host = urlparse.urlparse(host).hostname
-            if len(account) == 2: # User has set a host for the default account
-                self.hosts = [host]
-            if self.account == account[1]:
-                self.hosts = [host]
-                break
             self.accounts[host] = account[1]
             self.hosts.append(host)
 
+        # Which account do we use?
+        # 1: Explicitely configured
+        self.account = opts['--account'] or os.environ.get('GITSPINDLE_ACCOUNT', None)
+        if self.account and not self.config('user') and not opts['config']:
+            err("%s does not yet know about %s. Use %s add-account to configure it" % (self.prog, self.account, self.prog))
+
+        # 2: Determine from the current repo
         if not self.account and (self.in_repo or opts['<repo>']):
             host = self.repository(opts, True)
             if host in self.accounts:
                 self.account = self.accounts[host]
                 self.hosts = [host]
 
+        # 3: If we have no [gitXXX], but do have [gitXXX "url"], use it.
+        if not self.account and not self.config('user'):
+            accounts = self.git('config', '--file', self.config_file, '--get-regexp', '%s\..*\.user' % self.spindle).stdout.strip()
+            if accounts:
+                self.account = accounts.splitlines()[0].split('.')[1]
+
         os.environ['GITSPINDLE_ACCOUNT'] = self.account or self.spindle
+        host = self.config('host')
+        if host:
+            self.hosts = [urlparse.urlparse(host).hostname]
 
         for command, func in self.commands.items():
             if opts[command]:
@@ -317,7 +328,7 @@ Options:
         """[--host=<host>] <alias>
            Add an account to the configuration"""
         self.account = opts['<alias>']
-        if opts['--host']:
+        if opts.get('--host', None):
             self.config('host', opts['--host'])
         self.login()
 
@@ -366,20 +377,29 @@ Options:
 
     @hidden_command
     def test_cleanup(self, opts):
-        """[--keys] [--repos] [--gists]
+        """[--keys] [--repos] [--gists] [--namespace=<namespace>]
         Delete all keys and repos of an account, used in tests"""
         if not self.my_login.startswith('git-spindle-test-'):
             raise RuntimeError("Can only clean up test accounts")
+
+        namespace =  opts['--namespace'] or self.my_login
 
         if self.api.__name__ == 'github3':
             if opts['--keys']:
                 for key in self.gh.iter_keys():
                     key.delete()
             if opts['--repos']:
-                for repo in self.gh.iter_repos():
-                    if repo.owner.login == self.my_login:
+                if namespace != self.my_login:
+                    for repo in self.gh.organization(namespace).iter_repos():
+                        print repo
                         if not repo.delete():
                             raise RuntimeError("Deleting repository failed")
+                else:
+                    for repo in self.gh.iter_repos():
+                        if repo.owner.login == namespace:
+                            print repo
+                            if not repo.delete():
+                                raise RuntimeError("Deleting repository failed")
             if opts['--gists']:
                 for gist in self.gh.iter_gists():
                     gist.delete()
@@ -389,8 +409,12 @@ Options:
                 for key in self.me.keys():
                     key.delete()
             if opts['--repos']:
-                for repo in self.me.repositories():
-                    repo.delete()
+                if namespace != self.my_login:
+                    for repo in self.bb.team(namespace).repositories():
+                        repo.delete()
+                else:
+                    for repo in self.me.repositories():
+                        repo.delete()
             if opts['--gists']:
                 for snippet in self.me.snippets():
                     snippet.delete()
@@ -401,7 +425,8 @@ Options:
                     key.delete()
             if opts['--repos']:
                 for repo in self.gl.Project():
-                    repo.delete()
+                    if repo.namespace.path == namespace:
+                        repo.delete()
 
         else:
             raise UtterConfusion()
