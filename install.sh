@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 echo "Install the package"
-echo "pip install --user -e $(pwd)"
-pip install --user -e .
+echo "pip install --upgrade --user -e $(pwd)"
+pip install -U --user -e .
 
 echo "Building the man pages"
 cd docs
