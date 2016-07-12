@@ -1,4 +1,3 @@
-import cloud_sptheme as csp
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 source_suffix = '.rst'
@@ -9,13 +8,17 @@ version = '3.2'
 release = '3.2'
 exclude_patterns = ['_build']
 pygments_style = 'sphinx'
-html_theme = 'cloud'
 html_static_path = ['_static']
 html_theme_options = {
     'roottarget': 'index',
     'stickysidebar': False,
 }
-html_theme_path = [csp.get_theme_dir()]
+try:
+    import cloud_sptheme as csp
+    html_theme = 'cloud'
+    html_theme_path = [csp.get_theme_dir()]
+except:
+    pass
 html_show_sourcelink = False
 html_show_sphinx = False
 extensions = ['ansicolor']
